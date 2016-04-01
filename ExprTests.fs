@@ -1,6 +1,8 @@
 module Starling.Tests.Core.Expr
 
 open NUnit.Framework
+
+open Starling.Utils
 open Starling.Core.Axiom
 open Starling.Core.Expr
 open Starling.Core.ExprEquiv
@@ -164,3 +166,71 @@ type ExprTests() =
     [<TestCaseSource("ObviousNegations")>]
     member x.``negates is sound and sufficiently complete`` a b =
         equivHolds (negates a b)
+
+
+    /// <summary>
+    ///     Test cases for boolMarkingSequence.
+    /// </summary>
+    static member MarkingSeqs =
+        [ TestCaseData(BTrue)
+            .Returns([ After "x" ; Before "x" ])
+            .SetName("Marking seq with no variables is after/before")
+          TestCaseData(bBefore "foo")
+            .Returns([ After "x" ; Before "x" ])
+            .SetName("Marking seq with before is after/before")
+          TestCaseData(bAfter "foo")
+            .Returns([ After "x" ; Before "x" ])
+            .SetName("Marking seq with after is after/before")
+          TestCaseData(BAnd [ bEq (bAfter "foo") (bBefore "bar") ])
+            .Returns([ After "x" ; Before "x" ])
+            .SetName("Marking seq with after/before is after/before")
+          TestCaseData(BAnd [ bEq (bAfter "foo") (bInter 0I "bar")
+                              bEq (bInter 0I "bar") (bBefore "baz") ])
+            .Returns([ After "x" ; Intermediate (0I, "x"); Before "x" ])
+            .SetName("Marking seq with after/0/before is after/0/before") ]
+
+    /// Checks whether marking sequence generation works.
+    [<TestCaseSource("MarkingSeqs")>]
+    member x.``boolMarkingSequence generates correct sequences`` bex =
+        bex
+        |> boolMarkingSequence
+        |> Seq.map ((|>) "x")
+        |> Seq.toList
+
+
+    /// Test cases for HasMarker.
+    static member HasMarkers =
+        [ (tcd [| After ; After "foo" |])
+            .Returns(true)
+            .SetName("HasMarker After is true for After")
+          (tcd [| Before ; Before "foo" |])
+            .Returns(true)
+            .SetName("HasMarker Before is true for Before")
+          (tcd [| Unmarked ; Unmarked "foo" |])
+            .Returns(true)
+            .SetName("HasMarker Unmarked is true for Unmarked")
+          (tcd [| curry Intermediate 1I ; Intermediate (1I, "foo") |])
+            .Returns(true)
+            .SetName("HasMarker (Intermediate 1) is true for Intermediate 1")
+          (tcd [| After ; Before "foo" |])
+            .Returns(false)
+            .SetName("HasMarker After is false for Before")
+          (tcd [| Before ; Unmarked "foo" |])
+            .Returns(false)
+            .SetName("HasMarker Before is false for Unmarked")
+          (tcd [| Unmarked ; Intermediate (1I, "foo") |])
+            .Returns(false)
+            .SetName("HasMarker Unmarked is false for Intermediate 1")
+          (tcd [| curry Intermediate 1I ; Intermediate (2I, "foo") |])
+            .Returns(false)
+            .SetName("HasMarker (Intermediate 1) is false for Intermediate 2")
+          (tcd [| curry Intermediate 1I ; Before "foo" |])
+            .Returns(false)
+            .SetName("HasMarker (Intermediate 1) is false for Before") ]
+
+    /// Checks whether marker testing works.
+    [<TestCaseSource("HasMarkers")>]
+    member x.``HasMarker `` marker c =
+        match c with
+        | HasMarker marker _ -> true
+        | _ -> false

@@ -480,6 +480,18 @@ and nextIntermediate =
     | AExpr x -> nextIntIntermediate x
     | BExpr x -> nextBoolIntermediate x
 
+/// <summary>
+///     Creates a sequence of marking functions that cover the post-state,
+///     all intermediate variables, and pre-state respectively in a
+///     Boolean expression, in order.
+/// </summary>
+let boolMarkingSequence bex =
+    seq { yield After
+
+          for i in 0I .. (nextBoolIntermediate bex - 1I) do
+              yield (curry Intermediate i)
+
+          yield Before }
 
 (*
  * Active patterns
@@ -511,3 +523,10 @@ let rec (|ConstantBoolFunction|_|) = varsInBool >> onlyOne
 /// Partial pattern that matches a Boolean expression in terms of exactly one /
 /// constant.
 let rec (|ConstantArithFunction|_|) = varsInArith >> onlyOne
+
+/// <summary>
+///    Active pattern matching constants to given markers.
+/// </summary>
+let (|HasMarker|_|) marker x =
+    let xz = stripMark x
+    if (marker xz = x) then Some xz else None
