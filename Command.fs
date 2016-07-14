@@ -39,7 +39,13 @@ module Types =
     ///         the two concepts.
     ///     </para>
     /// </remarks>
-    type Command = SMVFunc list
+
+    ///type Command = SMVFunc list
+    type CommandType = 
+        { Results: Var list; Params: Expr<Sym<Var>> list; CmdName: string }
+
+    type Command = CommandType list
+
 
     /// <summary>
     ///     A term over <c>Command</c>s.
@@ -69,30 +75,15 @@ module Queries =
     /// </returns>
     let isNop =
         List.forall
-            (fun { Params = ps } ->
-                 (* We treat a func as a no-op if all variables it contains
-                  * are in the pre-state.  Thus, it cannot be modifying the
-                  * post-state, if it is well-formed.
-                  *
-                  * If we see any symbolic variables, err on the side of
-                  * caution and say it isn't a nop.  This is because the
-                  * symbol could mean _anything_, regardless of what we
-                  * put into it!
-                  *)
-                 Seq.forall (function
-                             | SMExpr.Int (AVar (Reg (Before _))) -> true
-                             | SMExpr.Int (AVar _) -> false
-                             | SMExpr.Bool (BVar (Reg (Before _))) -> true
-                             | SMExpr.Bool (BVar _) -> false
-                             | _ -> true)
-                            ps)
+            // Commands are no-op's if they modify no vars
+            <| fun { Results = ps } -> ps = []
 
     /// <summary>
     ///     Active pattern matching assume commands.
     /// </summary>
     let (|Assume|_|) =
         function
-        | [ { Name = n ; Params = [ SMExpr.Bool b ] } ]
+        | [ { CmdName = n ; Params = [ Expr.Bool b ] ; Results = [] } ]
           when n = "Assume" -> Some b
         | _ -> None
 
@@ -222,9 +213,13 @@ module Pretty =
     open Starling.Core.Var.Pretty
     open Starling.Core.Expr.Pretty
     open Starling.Core.Model.Pretty
+    open Starling.Core.Symbolic.Pretty
 
     /// Pretty-prints a Command.
-    let printCommand = List.map printSMVFunc >> semiSep
+    let printCommandType { CmdName = name; Params = xs; Results = ys } = 
+        hjoin [ commaSep <| Seq.map String ys; "<-" |> String; name |> String; commaSep <| Seq.map printSVExpr xs ]
+
+    let printCommand = List.map printCommandType >> semiSep
 
     /// Pretty-prints a PTerm.
     let printPTerm pWPre pGoal = printTerm printCommand pWPre pGoal
