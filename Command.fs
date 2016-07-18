@@ -22,25 +22,19 @@ module Types =
     ///
     ///     <para>
     ///         A command is a list, representing a sequential composition
-    ///         of primitives represented as <c>VFunc</c>.
+    ///         of commands
     ///     </para>
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         Each <c>VFunc</c> element keys into a <c>Model</c>'s
-    ///         <c>Semantics</c> <c>FuncTable</c>.
-    ///         This table contains two-state Boolean
-    ///         expressions capturing the command's semantics in a
-    ///         sort-of-denotational way.
-    ///     </para>
-    ///     <para>
-    ///         Commands are implemented in terms of <c>VFunc</c>s for
-    ///         convenience, not because of any deep relationship between
-    ///         the two concepts.
+    ///         Command's have format
+    ///             [Result] <- CmdName([Params])
+    ///
+    ///         Where Result = the changed local variables (list of Var)
+    ///         Params = the expressions inside the command
     ///     </para>
     /// </remarks>
 
-    ///type Command = SMVFunc list
     type CommandType = 
         { Results: Var list; Params: Expr<Sym<Var>> list; CmdName: string }
 
