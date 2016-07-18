@@ -25,6 +25,7 @@ open Starling.Core.Symbolic
 open Starling.Core.Model
 open Starling.Core.Sub
 open Starling.Core.Instantiate
+open Starling.Lang.Modeller
 
 
 /// <summary>
@@ -35,10 +36,10 @@ module Types =
     /// Type of errors relating to semantics instantiation.
     type Error =
         /// There was an error instantiating a semantic definition.
-        | Instantiate of prim: SMVFunc
+        | Instantiate of prim: CommandType
                        * error: Starling.Core.Instantiate.Types.Error
         /// A primitive has a missing semantic definition.
-        | MissingDef of prim: SMVFunc
+        | MissingDef of prim: CommandType
 
 
 /// <summary>
@@ -63,8 +64,7 @@ module Pretty =
 
 
 
-/// <summary>
-///     Composes two Boolean expressions representing commands.
+/// <summary> ///     Composes two Boolean expressions representing commands.
 ///     <para>
 ///         The pre-state of the first and post-state of the second become
 ///         the pre- and post- state of the composition.  All of the
@@ -145,10 +145,10 @@ let frame svars tvars expr =
 /// a set of framing terms forcing unbound variables to remain constant
 /// (through frame).
 let semanticsOfPrim
-  (semantics : FuncTable<SVBoolExpr>)
+  (semantics : SemanticsMap)
   (svars : VarMap)
   (tvars : VarMap)
-  (prim : SMVFunc)
+  (prim : CommandType)
   : Result<SMBoolExpr, Error> =
     (* First, instantiate according to the semantics.
      * This can succeed but return None.  This means there is no

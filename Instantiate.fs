@@ -406,7 +406,7 @@ let smvParamSubFun
 /// </returns>
 let instantiate
   (psf : VFunc<'dstVar> -> DFunc -> VSubFun<'srcVar, 'dstVar>)
-  (ftab : FuncTable<BoolExpr<'srcVar>>)
+  (ftab : SemanticsMap)
   (vfunc : VFunc<'dstVar>)
   : Result<BoolExpr<'dstVar> option, Error> =
     ftab

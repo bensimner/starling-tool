@@ -200,6 +200,12 @@ module Types =
     /// A term using only internal boolean expressions.
     type FTerm = CTerm<MBoolExpr>
 
+    /// The semantics of a single Command
+    type CommandSemantics =
+        { CmdName: string; Inputs: Param list; Outputs: Param list; Body: SVBoolExpr }
+
+    type SemanticsMap = Map<string, CommandSemantics>
+
     (*
      * Models
      *)
@@ -212,7 +218,7 @@ module Types =
           /// <summary>
           ///     The semantic function for this model.
           /// </summary>
-          Semantics : (DFunc * SVBoolExpr) list
+          Semantics : SemanticsMap
           // This corresponds to the function D.
           ViewDefs : 'viewdefs }
 

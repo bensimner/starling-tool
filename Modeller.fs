@@ -20,7 +20,6 @@ open Starling.Core.Sub
 open Starling.Lang.AST
 open Starling.Lang.Collator
 
-
 /// <summary>
 ///     Types used only in the modeller and adjacent pipeline stages.  /// </summary>
 [<AutoOpen>]
@@ -305,6 +304,8 @@ module Pretty =
 (*
  * Starling imperative language semantics
  *)
+let command : string -> Param list -> Param list -> SVBoolExpr -> CommandSemantics =
+    fun f results args body -> { CmdName = f; Inputs = args; Outputs = results; Body = body }
 
 /// <summary>
 ///   The core semantic function for the imperative language.
@@ -315,100 +316,92 @@ module Pretty =
 ///     imperative language.
 ///   </para>
 /// </remarks>
-let coreSemantics =
+let coreSemantics : SemanticsMap =
     // TODO(CaptainHayashi): specify this in the language (standard library?).
     // TODO(CaptainHayashi): generic functions?
     // TODO(CaptainHayashi): add shared/local/expr qualifiers to parameters?
-    [ (*
+    List.fold (fun map (cmd : CommandSemantics) -> Map.add cmd.CmdName cmd map) Map.empty
+    <| [ (*
        * CAS
        *)
-
-      // Integer CAS
-      (func "ICAS" [ Param.Int "destB"; Param.Int "destA"
-                     Param.Int "testB"; Param.Int "testA"
-                     Param.Int "set" ],
-       mkAnd [ mkImplies (iEq (siVar "destB") (siVar "testB"))
-                         (mkAnd [ iEq (siVar "destA") (siVar "set")
-                                  iEq (siVar "testA") (siVar "testB") ] )
-               mkImplies (mkNot (iEq (siVar "destB") (siVar "testB")))
-                         (mkAnd [ iEq (siVar "destA") (siVar "destB")
-                                  iEq (siVar "testA") (siVar "destB") ] ) ] )
+      (command "ICAS" [ Param.Int "destA"; Param.Int "testA"; ] [ Param.Int "destB"; Param.Int "testB"; Param.Int "setB"; ]
+           <| mkAnd [ mkImplies (iEq (siVar "destB") (siVar "testB"))
+                             (mkAnd [ iEq (siVar "destA") (siVar "set")
+                                      iEq (siVar "testA") (siVar "testB") ] )
+                      mkImplies (mkNot (iEq (siVar "destB") (siVar "testB")))
+                                (mkAnd [ iEq (siVar "destA") (siVar "destB")
+                                         iEq (siVar "testA") (siVar "destB") ] ) ] )
       // Boolean CAS
-      (func "BCAS" [ Param.Bool "destB"; Param.Bool "destA"
-                     Param.Bool "testB"; Param.Bool "testA"
-                     Param.Bool "set" ],
-       mkAnd [ mkImplies (bEq (sbVar "destB") (sbVar "testB"))
-                         (mkAnd [ bEq (sbVar "destA") (sbVar "set")
-                                  bEq (sbVar "testA") (sbVar "testB") ] )
-               mkImplies (mkNot (bEq (sbVar "destB") (sbVar "testB")))
-                         (mkAnd [ bEq (sbVar "destA") (sbVar "destB")
-                                  bEq (sbVar "testA") (sbVar "destB") ] ) ] )
+      (command "BCAS" [Param.Bool "destA"; Param.Bool "testA"; ] [Param.Bool "destB"; Param.Bool "testB"; Param.Bool "setB"; ]
+           <| mkAnd [ mkImplies (bEq (sbVar "destB") (sbVar "testB"))
+                                (mkAnd [ bEq (sbVar "destA") (sbVar "set")
+                                         bEq (sbVar "testA") (sbVar "testB") ] )
+                      mkImplies (mkNot (bEq (sbVar "destB") (sbVar "testB")))
+                                (mkAnd [ bEq (sbVar "destA") (sbVar "destB")
+                                         bEq (sbVar "testA") (sbVar "destB") ] ) ] )
 
       (*
        * Atomic load
        *)
-
       // Integer load
-      (func "!ILoad" [ Param.Int "destB"; Param.Int "destA"
-                       Param.Int "srcB"; Param.Int "srcA" ],
-       mkAnd [ iEq (siVar "destA") (siVar "srcB")
-               iEq (siVar "srcA") (siVar "srcB") ] )
+      (command "!ILoad"  [ Param.Int "dest" ] [ Param.Int "src" ]
+           <| iEq (siVar "dest") (siVar "src"))
+
       // Integer load-and-increment
-      (func "!ILoad++" [ Param.Int "destB"; Param.Int "destA"
-                         Param.Int "srcB"; Param.Int "srcA" ],
-       mkAnd [ iEq (siVar "destA") (siVar "srcB")
-               iEq (siVar "srcA") (mkAdd2 (siVar "srcB") (AInt 1L)) ] )
+      (command "!ILoad++"  [ Param.Int "dest"; Param.Int "srcA" ] [ Param.Int "srcB" ]
+           <| mkAnd [ iEq (siVar "dest") (siVar "srcB")
+                      iEq (siVar "srcA") (mkAdd2 (siVar "srcB") (AInt 1L)) ])
+
       // Integer load-and-decrement
-      (func "!ILoad--" [ Param.Int "destB"; Param.Int "destA"
-                         Param.Int "srcB"; Param.Int "srcA" ],
-       mkAnd [ iEq (siVar "destA") (siVar "srcB")
-               iEq (siVar "srcA") (mkSub2 (siVar "srcB") (AInt 1L)) ] )
+      (command "!ILoad--"  [ Param.Int "dest"; Param.Int "srcA" ] [ Param.Int "srcB" ]
+           <| mkAnd [ iEq (siVar "dest") (siVar "srcB")
+                      iEq (siVar "srcA") (mkSub2 (siVar "srcB") (AInt 1L)) ])
+
       // Integer increment
-      (func "!I++" [ Param.Int "srcB"; Param.Int "srcA" ],
-       mkAnd [ iEq (siVar "srcA") (mkAdd2 (siVar "srcB") (AInt 1L)) ] )
+      (command "!I++"  [ Param.Int "srcA" ] [ Param.Int "srcB" ]
+           <| iEq (siVar "srcA") (mkAdd2 (siVar "srcB") (AInt 1L)))
+
       // Integer decrement
-      (func "!I--" [ Param.Int "srcB"; Param.Int "srcA" ],
-       mkAnd [ iEq (siVar "srcA") (mkSub2 (siVar "srcB") (AInt 1L)) ] )
+      (command "!I--"  [ Param.Int "srcA" ] [ Param.Int "srcB" ]
+           <| iEq (siVar "srcA") (mkSub2 (siVar "srcB") (AInt 1L)))
+
       // Boolean load
-      (func "!BLoad" [ Param.Bool "destB"; Param.Bool "destA"
-                       Param.Bool "srcB"; Param.Bool "srcA" ],
-       mkAnd [ bEq (sbVar "destA") (sbVar "srcB")
-               bEq (sbVar "srcA") (sbVar "srcB") ] )
+      (command "!BLoad"  [ Param.Bool "dest" ] [ Param.Bool "src" ]
+           <| bEq (sbVar "dest") (sbVar "src"))
 
       (*
        * Atomic store
        *)
 
       // Integer store
-      (func "!IStore" [ Param.Int "destB"; Param.Int "destA"
-                        Param.Int "src" ],
-       iEq (siVar "destA") (siVar "src"))
+      (command "!IStore" [ Param.Int "dest" ] [ Param.Int "src" ]
+           <| iEq (siVar "dest") (siVar "src"))
+
       // Boolean store
-      (func "!BStore" [ Param.Bool "destB"; Param.Bool "destA"
-                        Param.Bool "src" ],
-       bEq (sbVar "destA") (sbVar "src"))
+      (command "!BStore" [ Param.Bool "dest" ] [ Param.Bool "src" ]
+           <| bEq (sbVar "dest") (sbVar "src"))
 
       (*
        * Local set
        *)
 
       // Integer local set
-      (func "!ILSet" [ Param.Int "destB"; Param.Int "destA"
-                       Param.Int "src" ],
-       iEq (siVar "destA") (siVar "src"))
+      (command "!ILSet" [ Param.Int "dest" ] [ Param.Int "src" ] 
+           <| iEq (siVar "dest") (siVar "src"))
+
       // Boolean store
-      (func "!BLSet" [ Param.Bool "destB"; Param.Bool "destA"
-                       Param.Bool "src" ],
-       bEq (sbVar "destA") (sbVar "src"))
+      (command "!BLSet" [ Param.Bool "dest" ] [ Param.Bool "src" ] 
+           <| bEq (sbVar "dest") (sbVar "src"))
 
       (*
        * Assumptions
        *)
 
       // Identity
-      (func "Id" [], BTrue)
+      (command "Id" [] [] BTrue)
+
       // Assume
-      (func "Assume" [ Param.Bool "expr" ], sbVar "expr") ]
+      (command "Assume" [] [Param.Bool "expr"] <| sbVar "expr") ]
 
 (*
  * Expression translation
@@ -901,29 +894,30 @@ let rec modelCView protos ls =
 let (|VarIn|_|) env (lvalue : LValue) = tryLookupVar env lvalue
 
 /// Converts a Boolean load to a Prim.
-let modelBoolLoad svars dest srcExpr mode =
-    (* In a Boolean load, the destination must be LOCAL and Boolean;
-     *                    the source must be a GLOBAL Boolean lvalue;
-     *                    and the fetch mode must be Direct.
-     *)
-    match srcExpr.Node with
-    | LV srcLV ->
-        trial {
-            let! src = wrapMessages BadSVar (lookupVar svars) srcLV
-            match src, mode with
-            | Typed.Bool s, Direct ->
-                return
-                    smvfunc
-                        "!BLoad"
-                            [ dest |> Before |> Reg |> BVar |> Expr.Bool
-                              dest |> After |> Reg |> BVar |> Expr.Bool
-                              s |> Before |> Reg |> BVar |> Expr.Bool
-                              s |> After |> Reg |> BVar |> Expr.Bool ]
-            | Typed.Bool s, Increment -> return! fail (IncBool srcExpr)
-            | Typed.Bool s, Decrement -> return! fail (DecBool srcExpr)
-            | _ -> return! fail (TypeMismatch (Type.Bool (), srcLV, typeOf src))
-        }
-    | _ -> fail (LoadNonLV srcExpr)
+let modelBoolLoad : VarMap -> Var -> Expression -> FetchMode -> Result<Command, PrimError> = 
+    fun svars dest srcExpr mode ->
+        (* In a Boolean load, the destination must be LOCAL and Boolean;
+         *                    the source must be a GLOBAL Boolean lvalue;
+         *                    and the fetch mode must be Direct.
+         *)
+        match srcExpr.Node with
+        | LV srcLV ->
+            trial {
+                let! src = wrapMessages BadSVar (lookupVar svars) srcLV
+                match src, mode with
+                | Typed.Bool s, Direct ->
+                    return
+                        smvfunc
+                            "!BLoad"
+                                [ dest |> Before |> Reg |> BVar |> Expr.Bool
+                                  dest |> After |> Reg |> BVar |> Expr.Bool
+                                  s |> Before |> Reg |> BVar |> Expr.Bool
+                                  s |> After |> Reg |> BVar |> Expr.Bool ]
+                | Typed.Bool s, Increment -> return! fail (IncBool srcExpr)
+                | Typed.Bool s, Decrement -> return! fail (DecBool srcExpr)
+                | _ -> return! fail (TypeMismatch (Type.Bool (), srcLV, typeOf src))
+            }
+        | _ -> fail (LoadNonLV srcExpr)
 
 /// Converts an integer load to a Prim.
 let modelIntLoad svars dest srcExpr mode =
