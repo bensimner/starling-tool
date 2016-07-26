@@ -317,6 +317,7 @@ module Pretty =
 
     /// Pretty-prints view expressions.
     let rec printViewExpr pView =
+
         function
         | Mandatory v -> pView v
         | Advisory v -> hjoin [ pView v ; String "?" ]
@@ -572,6 +573,10 @@ let withAxioms (xs : Map<string, 'y>) (model : Model<'x, 'dview>)
 let mapAxioms (f : 'x -> 'y) (model : Model<'x, 'dview>) : Model<'y, 'dview> =
     withAxioms (model |> axioms |> Map.map (fun _ -> f)) model
 
+/// Maps a pure function f over the axioms of a model, passing the globals and locals
+let mapAxiomsWithVars (f : VarMap -> VarMap -> 'x -> 'y) (model : Model<'x, 'dview>) : Model<'y, 'dview> =
+    withAxioms (model |> axioms |> Map.map (fun _ -> f model.Globals model.Locals)) model
+
 /// Maps a failing function f over the axioms of a model.
 let tryMapAxioms (f : 'x -> Result<'y, 'e>) (model : Model<'x, 'dview>)
     : Result<Model<'y, 'dview>, 'e> =
@@ -610,9 +615,11 @@ let tryMapViewDefs (f : 'x -> Result<'y, 'e>) (model : Model<'axiom, 'x>)
 /// <summary>
 ///     Active pattern extracting a View from a ViewExpr.
 /// </summary>
-let (|InnerView|) =
+let ofView =
     function
     | Advisory v | Mandatory v -> v
+
+let (|InnerView|) = ofView
 
 /// <summary>
 ///     Returns true if a <c>ViewExpr</c> can be removed at will without

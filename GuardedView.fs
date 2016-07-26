@@ -325,6 +325,13 @@ let pruneGuardedSet gset =
     |> Multiset.ofFlatSeq
 
 
+let SVGViewVars : SVGView -> Set<Param> =
+    fun v -> 
+        let l = Multiset.toSet v
+        let vars g gf = 
+            mapOverSymVars Mapper.mapBoolCtx findSymVars g
+        Set.fold (+) Set.empty (Set.map (uncurry vars << gFuncTuple) l)
+
 /// <summary>
 ///     Pretty printers for guarded items.
 /// </summary>

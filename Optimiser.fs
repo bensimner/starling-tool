@@ -14,6 +14,7 @@ open Chessie.ErrorHandling
 open Starling.Core.TypeSystem
 open Starling.Collections
 open Starling.Utils
+open Starling.Core.Axiom
 open Starling.Core.Expr
 open Starling.Core.ExprEquiv
 open Starling.Core.Var
@@ -587,6 +588,22 @@ module Graph =
                     | _ -> ctx
                 | _ -> ctx
 
+    /// Removes edges with disjoint ins/outs
+    /// i.e. a triple, {| p |} c {| p' |} where c is thread-local and its vars are disjoint from p and p'
+    let collapseDisjoints locals ctx =
+        expandNodeIn ctx <|
+            fun node nView outEdges inEdges nk -> 
+                let edgeProcess (e : OutEdge) = 
+                    if isLocalCommand locals e.Command
+                        then 
+                            let p  = nView
+                            let p' = (fun (a, _, _, _) -> a) <| ctx.Graph.Contents. [e.Dest]
+                            let p_v, p'_v = ofView p, ofView p'
+                            let vars = SVGViewVars p_v
+                        else ctx
+                ctx
+//            let isLocalCommand (tVars : VarMap) : Command -> bool =
+
     /// <summary>
     ///     Removes views where either all of the entry commands are local,
     ///     or all of the exit commands are local, and the view is advisory.
@@ -699,9 +716,8 @@ module Graph =
         onNodes (Utils.optimiseWith optR optA verbose
                      [ ("graph-collapse-nops", true, collapseNops)
                        ("graph-collapse-ites", true, collapseITEs)
-                       ("graph-drop-local-midview",
-                        true,
-                        dropLocalMidView model.Locals) ] )
+                       ("graph-eliminate-disjoint", true, collapseDisjoints model.Locals)
+                       ("graph-drop-local-midview", true, dropLocalMidView model.Locals) ] )
 
     /// <summary>
     ///     Optimises a model over graphs.
@@ -724,6 +740,16 @@ module Graph =
     /// </returns>
     let optimise optR optA verbose mdl =
         mapAxioms (optimiseGraph mdl optR optA verbose) mdl
+
+/// Local Semantic optimisation
+module Semantic =
+    let eliminateDeadCode ax = failwith "1/0"
+    let optimise : Set<string> -> Set<string> -> bool -> UVModel<GoalAxiom<Command>> -> UVModel<GoalAxiom<Command>> =
+        //fun optR optA verbose -> failwith (sprintf "optR <- %A, optA <- %A, verbose <- %A" optR optA verbose)
+        fun optR optA verbose -> 
+            let optimiseSemantics a = 
+                    (failwith "hi")
+            mapAxioms optimiseSemantics
 
 
 /// <summary>

@@ -71,6 +71,8 @@ type Request =
     | Axiomatise
     /// Stop at goalAdd-axiom-pair generation.
     | GoalAdd
+    /// Stop at semantic optimisation
+    | SemanticOptimise
     /// Stop at term generation.
     | TermGen
     /// Stop at view reification.
@@ -126,6 +128,9 @@ let requestMap =
           ("goaladd",
            ("Stops Starling model generation at goal generation.",
             Request.GoalAdd))
+          ("semanticoptimise",
+           ("Stops Starling model generation at semantic optimisation",
+            Request.SemanticOptimise))
           ("termgen",
            ("Stops Starling model generation at proof term generation.",
             Request.TermGen))
@@ -196,6 +201,8 @@ type Response =
     /// The result of goal-axiom-pair generation.
     | GoalAdd of UVModel<GoalAxiom<Command>>
     /// The result of semantic expansion.
+    | SemanticOptimise of UVModel<GoalAxiom<Command>>
+    /// The result of semantic expansion.
     | Semantics of UVModel<GoalAxiom<SMBoolExpr>>
     /// The result of term generation.
     | TermGen of UVModel<STerm<SMGView, OView>>
@@ -230,6 +237,8 @@ let printResponse mview =
     | Axiomatise m ->
         printUVModelView (printAxiom printCommand printSVGView) mview m
     | GoalAdd m ->
+        printUVModelView (printGoalAxiom printCommand) mview m
+    | SemanticOptimise m ->
         printUVModelView (printGoalAxiom printCommand) mview m
     | Semantics m ->
         printUVModelView (printGoalAxiom printSMBoolExpr) mview m
@@ -410,6 +419,9 @@ let termGen = lift Starling.TermGen.termGen
 
 /// Shorthand for the goal adding stage.
 let goalAdd = lift Starling.Core.Axiom.goalAdd
+///
+/// Shorthand for the semantic optimisation step
+let semanticOptimise optR optA verbose = lift <| Starling.Optimiser.Semantic.optimise optR optA verbose
 
 /// Shorthand for the semantics stage.
 let semantics = bind (Starling.Semantics.translate
@@ -558,17 +570,18 @@ let runStarling times optS backendS verbose request =
         eprintfn "Z3 version: %s" (Microsoft.Z3.Version.ToString ())
 
     let graphOptimise = graphOptimise optR optA verbose
+    let semanticOptimise = semanticOptimise optR optA verbose
     let termOptimise = termOptimise optR optA verbose
 
     frontend times (match request with | Request.Frontend rq -> rq | _ -> Lang.Frontend.Request.Continuation)
-    ** phase  graphOptimise  Request.GraphOptimise  Response.GraphOptimise
-    ** phase  axiomatise     Request.Axiomatise     Response.Axiomatise
-    ** phase  goalAdd        Request.GoalAdd        Response.GoalAdd
-    ** phase  semantics      Request.Semantics      Response.Semantics
-    ** phase  termGen        Request.TermGen        Response.TermGen
-    ** phase  reify          Request.Reify          Response.Reify
-    ** phase  flatten        Request.Flatten        Response.Flatten
-    ** phase  termOptimise   Request.TermOptimise   Response.TermOptimise
+    ** phase  graphOptimise         Request.GraphOptimise  Response.GraphOptimise
+    ** phase  axiomatise            Request.Axiomatise     Response.Axiomatise
+    ** phase  goalAdd               Request.GoalAdd        Response.GoalAdd
+    ** phase  semantics             Request.Semantics      Response.Semantics
+    ** phase  termGen               Request.TermGen        Response.TermGen
+    ** phase  reify                 Request.Reify          Response.Reify
+    ** phase  flatten               Request.Flatten        Response.Flatten
+    ** phase  termOptimise          Request.TermOptimise   Response.TermOptimise
     ** backend
 
 /// Runs Starling with the given options, and outputs the results.
