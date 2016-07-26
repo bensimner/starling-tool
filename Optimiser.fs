@@ -483,6 +483,18 @@ module Graph =
                                               | Some _ -> true
                                               | _ -> false))
                      ps)
+
+
+    let isLocalResults : VarMap -> Command -> bool =
+        fun tvars -> 
+        let localResults prim = 
+            List.forall (fun v -> 
+                match (tvars.TryFind <| valueOf v) with
+                | Some _ -> true
+                | None   -> false
+                ) prim.Results
+        List.forall localResults
+            
     /// <summary>
     ///     Partial active pattern matching <c>Sym</c>-less expressions.
     /// </summary>
@@ -590,19 +602,41 @@ module Graph =
 
     /// Removes edges with disjoint ins/outs
     /// i.e. a triple, {| p |} c {| p' |} where c is thread-local and its vars are disjoint from p and p'
+    open Starling.Core.Command.Pretty
+    open Starling.Core.GuardedView.Pretty
+    open Starling.Core.Pretty
     let collapseDisjoints locals ctx =
         expandNodeIn ctx <|
             fun node nView outEdges inEdges nk -> 
-                let edgeProcess (e : OutEdge) = 
-                    if isLocalCommand locals e.Command
+                printfn "collapseDisjoints %s" node
+                let edgeProcess ctx (e : OutEdge) = 
+                    let e_str = sprintf "(Name=%s, Dest=%s, Cmd=%s)" e.Name e.Dest <| print (printCommand e.Command)
+                    printfn ".. edgeProcess %s" e_str
+                    let disjoint p q = p - q = p && q - p = q
+                    if isLocalResults locals e.Command
                         then 
+                            printfn "collapseDisjoints :: localCommand %A" e.Command
                             let p  = nView
-                            let p' = (fun (a, _, _, _) -> a) <| ctx.Graph.Contents. [e.Dest]
-                            let p_v, p'_v = ofView p, ofView p'
-                            let vars = SVGViewVars p_v
+                            let q = (fun (a, _, _, _) -> a) <| ctx.Graph.Contents. [e.Dest]
+                            let p_v, q_v = ofView p, ofView q
+                            printfn "p_v <- %s" <| (print <| printSVGView p_v)
+                            printfn "q_v <- %s" <| (print <| printSVGView q_v)
+                            let p_vars = SVGViewVars p_v
+                            let q_vars = SVGViewVars q_v
+                            printfn "p_vars <- %A" p_vars
+                            printfn "q_vars <- %A" q_vars
+                            let cmdNames = Set.ofList (List.fold (@) [] <| List.map (fun c -> c.Results) e.Command)
+                            if disjoint p_vars cmdNames && disjoint q_vars cmdNames
+                                then
+                                    let xforms =
+                                        seq { // Remove the existing edges first.
+                                              yield RmOutEdge (node, e)
+                                        }
+                                    printfn "removing edge %s" e_str
+                                    runTransforms xforms ctx
+                                else ctx
                         else ctx
-                ctx
-//            let isLocalCommand (tVars : VarMap) : Command -> bool =
+                Set.fold edgeProcess ctx outEdges
 
     /// <summary>
     ///     Removes views where either all of the entry commands are local,

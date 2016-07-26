@@ -328,8 +328,16 @@ let pruneGuardedSet gset =
 let SVGViewVars : SVGView -> Set<Param> =
     fun v -> 
         let l = Multiset.toSet v
-        let vars g gf = 
+        let symExprVars =
+            function
+            | Bool e -> mapOverSymVars Mapper.mapBoolCtx findSymVars e
+            | Int e -> mapOverSymVars Mapper.mapIntCtx findSymVars e
+
+        let gfuncVars gf = Set.fold (+) Set.empty (Set.ofList (List.map symExprVars gf.Params))
+            
+        let vars g gf =
             mapOverSymVars Mapper.mapBoolCtx findSymVars g
+            + gfuncVars gf
         Set.fold (+) Set.empty (Set.map (uncurry vars << gFuncTuple) l)
 
 /// <summary>
