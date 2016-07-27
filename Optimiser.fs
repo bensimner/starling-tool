@@ -608,31 +608,24 @@ module Graph =
     let collapseDisjoints locals ctx =
         expandNodeIn ctx <|
             fun node nView outEdges inEdges nk -> 
-                printfn "collapseDisjoints %s" node
                 let edgeProcess ctx (e : OutEdge) = 
-                    let e_str = sprintf "(Name=%s, Dest=%s, Cmd=%s)" e.Name e.Dest <| print (printCommand e.Command)
-                    printfn ".. edgeProcess %s" e_str
                     let disjoint p q = p - q = p && q - p = q
                     if isLocalResults locals e.Command
                         then 
-                            printfn "collapseDisjoints :: localCommand %A" e.Command
                             let p  = nView
                             let q = (fun (a, _, _, _) -> a) <| ctx.Graph.Contents. [e.Dest]
                             let p_v, q_v = ofView p, ofView q
-                            printfn "p_v <- %s" <| (print <| printSVGView p_v)
-                            printfn "q_v <- %s" <| (print <| printSVGView q_v)
+
                             let p_vars = SVGViewVars p_v
                             let q_vars = SVGViewVars q_v
-                            printfn "p_vars <- %A" p_vars
-                            printfn "q_vars <- %A" q_vars
                             let cmdNames = Set.ofList (List.fold (@) [] <| List.map (fun c -> c.Results) e.Command)
-                            if disjoint p_vars cmdNames && disjoint q_vars cmdNames
+
+                            if disjoint p_vars cmdNames && disjoint q_vars cmdNames && p_v = q_v
                                 then
                                     let xforms =
                                         seq { // Remove the existing edges first.
                                               yield RmOutEdge (node, e)
                                         }
-                                    printfn "removing edge %s" e_str
                                     runTransforms xforms ctx
                                 else ctx
                         else ctx
