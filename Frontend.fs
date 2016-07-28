@@ -120,11 +120,12 @@ let graph = bind (Grapher.graph >> mapMessages Error.Graph)
 /// error, output with the surrounding pipeline; the fifth is a continuation for the
 /// surrounding pipeline; and final is an optional filename from which the frontend
 /// should read (if empty, read from stdin).
-let run times request success error continuation =
+let run request success error continuation =
+    let config = Config.config()
     let phase op test output continuation m =
         let time = System.Diagnostics.Stopwatch.StartNew()
         op m
-        |> (time.Stop(); (if times then printfn "Phase %A; Elapsed: %dms" test time.ElapsedMilliseconds); id)
+        |> (time.Stop(); (if config.verbose then printfn "Phase %A; Elapsed: %dms" test time.ElapsedMilliseconds); id)
         |> if request = test then lift (output >> success) >> mapMessages error else continuation
     let ( ** ) = ( <| )
     phase    parse   Request.Parse   Response.Parse

@@ -32,7 +32,9 @@ module Types =
     ///         for example <x = y++> is translated approximately to { Name = "!ILoad++"; Results = [ siVar "x"; siVar "y" ]; Args = [ siVar "y" ] }
     ///     </para>
     /// </remarks>
-    type PrimCommand = { Name : string; Results : Param list; Args : SMExpr list }
+    type PrimCommand = 
+        { Name : string; Results : Param list; Args : SMExpr list }
+        override this.ToString () = sprintf "PrimCommand{Name=%s; Results=%A; Args=%A}" this.Name this.Results this.Args
     type Command = PrimCommand list
 
 /// <summary>
@@ -196,6 +198,12 @@ module Pretty =
 
     /// Pretty-prints a Command.
     let printPrimCommand { Name = name; Args = xs; Results = ys } = 
-        hjoin [ commaSep <| Seq.map (printCTyped String) ys; "<-" |> String; name |> String; commaSep <| Seq.map printSMExpr xs ]
+        hjoin [
+            commaSep <| Seq.map (printCTyped String) ys;
+            (if List.isEmpty ys then Nop else " <- " |> String);
+            name |> String;
+            String " ";
+            commaSep <| Seq.map printSMExpr xs 
+        ]
 
     let printCommand = List.map printPrimCommand >> semiSep

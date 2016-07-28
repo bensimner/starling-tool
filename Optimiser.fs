@@ -182,7 +182,8 @@ module Utils =
     /// <returns>
     ///     A sequence of optimisers to run.
     /// </returns>
-    let mkOptimiserSet opts removes adds verbose =
+    let mkOptimiserSet opts removes adds =
+        let verbose = Config.config().verbose
         if Set.contains "all" removes
         then
              if verbose
@@ -238,8 +239,8 @@ module Utils =
     ///     A function that, when applied to something, optimises it with
     ///     the selected optimisers.
     /// </returns>
-    let optimiseWith removes adds verbose opts =
-        let fs = mkOptimiserSet opts removes adds verbose
+    let optimiseWith removes adds opts =
+        let fs = mkOptimiserSet opts removes adds
 
         (* This would be much more readable if it wasn't pointfree...
            ...but would also cause fs to be evaluated every single time
@@ -600,8 +601,15 @@ module Graph =
                     | _ -> ctx
                 | _ -> ctx
 
+
+    let commandResults = Set.ofList << (List.fold (@) [] << List.map (fun c -> c.Results))
+    let commandArgs cmd = 
+        let f c = List.map SMExprVars c.Args
+        let vars = List.fold (@) [] <| List.map f cmd
+        Set.fold (+) Set.empty <| Set.ofList vars
+
     /// Removes edges with disjoint ins/outs
-    /// i.e. a triple, {| p |} c {| p' |} where c is thread-local and its vars are disjoint from p and p'
+    /// i.e. a triple, {| p |} c {| p |} where c is thread-local and its vars are disjoint from p
     open Starling.Core.Command.Pretty
     open Starling.Core.GuardedView.Pretty
     open Starling.Core.Pretty
@@ -618,7 +626,7 @@ module Graph =
 
                             let p_vars = SVGViewVars p_v
                             let q_vars = SVGViewVars q_v
-                            let cmdNames = Set.ofList (List.fold (@) [] <| List.map (fun c -> c.Results) e.Command)
+                            let cmdNames = commandResults e.Command
 
                             if disjoint p_vars cmdNames && disjoint q_vars cmdNames && p_v = q_v
                                 then
@@ -626,10 +634,92 @@ module Graph =
                                         seq { // Remove the existing edges first.
                                               yield RmOutEdge (node, e)
                                         }
+                                    eprintfn "removing edge %s" <| sprintf "{| %s |} %s {| %s |}" (print (printSVGView p_v)) (print (printCommand e.Command)) (print (printSVGView q_v))
                                     runTransforms xforms ctx
                                 else ctx
                         else ctx
                 Set.fold edgeProcess ctx outEdges
+
+    /// Removes edge/node pairs with {| p |} c {| p' |} d {| q |} 
+    /// where c's results are a subset of d's results
+    /// and disjoint from d's inputs
+    /// and leave
+    /// -> {| p |} d {| q |}
+    let getInEdge ctx src dest =
+        let _, _, inEdges, _ = ctx.Graph.Contents. [dest]
+        let isSame (e : InEdge) = e.Src = src
+        match List.ofSeq <| Set.filter isSame inEdges with
+            | [ x ] -> x
+            | _     -> failwith "no corresponding in edge"
+
+    let getOutEdge ctx src dest =
+        let _, outEdges, _, _ = ctx.Graph.Contents. [src]
+        let isSame (e : OutEdge) = e.Dest = dest
+        match List.ofSeq <| Set.filter isSame outEdges with
+            | [ x ] -> x
+            | _     -> failwith "no corresponding in edge"
+
+    let removeOverwrites locals ctx =
+        expandNodeIn ctx <|
+            fun node p outEdges inEdges nk ->
+                let cp (e : OutEdge) = 
+                    let c = e.Command
+                    let p', outs', ins', nk' = ctx.Graph.Contents. [e.Dest]
+                    let cq (e : OutEdge) =
+                        (e.Command, e.Dest)
+
+                    let vs = Set.map cq outs'
+                    Set.map (fun (a, s) -> (node, c, e.Dest, a, s)) vs
+
+                let disjoint a b = Set.empty = (Set.filter (flip Set.contains <| b) a)
+
+                let triple ctx (p_node, c, p'_node, d, q_node) =
+
+                    let cR = commandResults c
+                    let dR = commandResults d
+                    let dA = commandArgs d
+
+                    if Set.isSubset cR dR && disjoint cR dA && isLocalResults locals c && isLocalResults locals d  // does d have to be local?
+                        then
+                            let p  = match ctx.Graph.Contents. [p_node]  with (pv, _, _, _) -> ofView pv
+                            let p' = match ctx.Graph.Contents. [p'_node] with (pv, _, _, _) -> ofView pv
+                            let q  = match ctx.Graph.Contents. [q_node]  with (pv, _, _, _) -> ofView pv
+
+                            eprintfn "removeOverwrites :- removing edge-pair %s"
+                                <| sprintf "{| %s |} %s {| %s |} %s {| %s |}"
+                                    (print (printSVGView p))
+                                    (print (printCommand c))
+                                    (print (printSVGView p'))
+                                    (print (printCommand d))
+                                    (print (printSVGView q))
+                            let xforms =
+                                seq {
+                                      // Remove the {p}c{p'} edge
+                                      yield RmOutEdge (node, getOutEdge ctx p_node p'_node)
+                                      yield RmInEdge (getInEdge ctx p_node p'_node, node)
+                                      // Remove the {p'}d{q} edge
+                                      yield RmOutEdge (node, getOutEdge ctx p'_node q_node)
+                                      yield RmInEdge (getInEdge ctx p_node q_node, node)
+                                      // Remove p'
+                                      yield RmNode p'_node
+                                      // Then, add the new edges {p}d{q}
+                                      yield MkCombinedEdge (getInEdge ctx p_node q_node, getOutEdge ctx p_node q_node)
+                                }
+                            let ctx' = 
+                                (flip runTransforms) ctx
+                                <| seq {
+                                    yield RmOutEdge (node, getOutEdge ctx p_node p'_node)
+                                }
+
+                            //eprintfn "ctx .Graph =\n%A" ctx.Graph
+                            //eprintfn "ctx'.Graph =\n%A" ctx'.Graph
+                            ctx'
+
+                        else ctx
+
+                let ts = Set.fold (+) Set.empty <| Set.map cp outEdges
+                Set.fold triple ctx <| ts
+
 
     /// <summary>
     ///     Removes views where either all of the entry commands are local,
@@ -738,12 +828,13 @@ module Graph =
     /// <returns>
     ///     An optimised equivalent of <paramref name="_arg1" />.
     /// </returns>
-    let optimiseGraph model optR optA verbose =
+    let optimiseGraph model optR optA =
         // TODO(CaptainHayashi): Use the model for something.
-        onNodes (Utils.optimiseWith optR optA verbose
+        onNodes (Utils.optimiseWith optR optA
                      [ ("graph-collapse-nops", true, collapseNops)
                        ("graph-collapse-ites", true, collapseITEs)
                        ("graph-eliminate-disjoint", true, collapseDisjoints model.Locals)
+                       ("graph-remove-overwrites", true, removeOverwrites model.Locals)
                        ("graph-drop-local-midview", true, dropLocalMidView model.Locals) ] )
 
     /// <summary>
@@ -765,15 +856,15 @@ module Graph =
     /// <returns>
     ///     An optimised equivalent of <paramref name="mdl" />.
     /// </returns>
-    let optimise optR optA verbose mdl =
-        mapAxioms (optimiseGraph mdl optR optA verbose) mdl
+    let optimise optR optA mdl =
+        mapAxioms (optimiseGraph mdl optR optA) mdl
 
 /// Local Semantic optimisation
 module Semantic =
     let eliminateDeadCode ax = failwith "1/0"
-    let optimise : Set<string> -> Set<string> -> bool -> UVModel<GoalAxiom<Command>> -> UVModel<GoalAxiom<Command>> =
+    let optimise : Set<string> -> Set<string> -> UVModel<GoalAxiom<Command>> -> UVModel<GoalAxiom<Command>> =
         //fun optR optA verbose -> failwith (sprintf "optR <- %A, optA <- %A, verbose <- %A" optR optA verbose)
-        fun optR optA verbose -> 
+        fun optR optA ->
             let optimiseSemantics a = 
                     (failwith "hi")
             mapAxioms optimiseSemantics
@@ -905,11 +996,11 @@ module Term =
                      "term-simplify-bools" ]
 
     /// Optimises a model's terms.
-    let optimise optR optA verbose
+    let optimise optR optA
       : UFModel<STerm<SMGView, SMVFunc>>
           -> UFModel<STerm<SMGView, SMVFunc>> =
         let optimiseTerm =
-            Utils.optimiseWith optR optA verbose
+            Utils.optimiseWith optR optA
                 [ ("term-remove-after", true, eliminateAfters)
                   ("term-reduce-guards", true, guardReduce)
                   ("term-simplify-bools", true, simpTerm) ]

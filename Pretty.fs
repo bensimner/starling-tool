@@ -131,13 +131,17 @@ let rec printState state =
 /// <summary>
 ///     Prints a <see cref="Doc"/> with full styling.
 /// </summary>
-let print = printState { Level = 0; UseStyles = true }
+let printStyled = printState { Level = 0; UseStyles = true }
 
 /// <summary>
 ///     Prints a <see cref="Doc"/> with no styling.
 /// </summary>
 let printUnstyled = printState { Level = 0; UseStyles = false }
 
+/// <summary>
+///     Prints a <see cref="Doc"/>
+/// </summary>
+let print = if Config.config().color then printStyled else printUnstyled
 
 (*
  * Shortcuts
