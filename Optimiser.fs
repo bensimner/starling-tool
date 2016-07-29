@@ -485,6 +485,13 @@ module Graph =
                                               | _ -> false))
                      ps)
 
+    let hasAssume : Command -> bool =
+        fun c ->
+            c |>
+            List.forall (fun p ->
+                match p with
+                | { Name = "Assume" } -> true;
+                | _ -> false)
 
     let isLocalResults : VarMap -> Command -> bool =
         fun tvars -> 
@@ -495,7 +502,7 @@ module Graph =
                 | None   -> false
                 ) prim.Results
         List.forall localResults
-            
+
     /// <summary>
     ///     Partial active pattern matching <c>Sym</c>-less expressions.
     /// </summary>
@@ -619,7 +626,7 @@ module Graph =
                 let edgeProcess ctx (e : OutEdge) = 
                     let disjoint p q = p - q = p && q - p = q
                     if isLocalResults locals e.Command
-                        then 
+                        then
                             let p  = nView
                             let q = (fun (a, _, _, _) -> a) <| ctx.Graph.Contents. [e.Dest]
                             let p_v, q_v = ofView p, ofView q
@@ -657,7 +664,7 @@ module Graph =
         let isSame (e : OutEdge) = e.Dest = dest
         match List.ofSeq <| Set.filter isSame outEdges with
             | [ x ] -> x
-            | _     -> failwith "no corresponding in edge"
+            | _     -> failwith "no corresponding out edge"
 
     let removeOverwrites locals ctx =
         expandNodeIn ctx <|
@@ -679,7 +686,9 @@ module Graph =
                     let dR = commandResults d
                     let dA = commandArgs d
 
-                    if Set.isSubset cR dR && disjoint cR dA && isLocalResults locals c && isLocalResults locals d  // does d have to be local?
+                    if Set.isSubset cR dR && disjoint cR dA && isLocalResults locals c
+                        && isLocalResults locals d  // does d have to be local?
+                        && not <| hasAssume c && not <| hasAssume d  // what about assumes?
                         then
                             let p  = match ctx.Graph.Contents. [p_node]  with (pv, _, _, _) -> ofView pv
                             let p' = match ctx.Graph.Contents. [p'_node] with (pv, _, _, _) -> ofView pv
