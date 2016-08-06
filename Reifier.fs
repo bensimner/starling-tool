@@ -57,6 +57,7 @@ let reifyTerm dvs =
     mapTerm id (reifyView dvs) id
 
 /// Reifies all of the terms in a model's axiom list.
-let reify : UVModel<Term<'a, SMGView, OView>> -> UVModel<Term<'a, SMViewSet, OView>> =
-    fun ms ->
-        mapAxioms (reifyTerm ms.ViewDefs) ms
+let reify
+  (model : Model<Term<'a, SMGView, OView>, ViewToSymBoolDefiner>)
+  : Model<Term<'a, SMViewSet, OView>, ViewToSymBoolDefiner> =
+      mapAxioms (reifyTerm model.ViewDefs) model

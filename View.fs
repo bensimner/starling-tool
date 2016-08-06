@@ -213,10 +213,6 @@ module Pretty =
                 [ (String "View", pView vs)
                   (String "Def", String "?") ]
 
-    /// Pretty-printer for BViewDefs.
-    let printSVBViewDef pView =
-        printViewDef pView printSVBoolExpr
-
 /// <summary>
 ///     Type-constrained version of <c>func</c> for <c>DFunc</c>s.
 /// </summary>
