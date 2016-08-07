@@ -7,9 +7,11 @@ module Starling.Reifier
 open Starling.Collections
 open Starling.Core.Expr
 open Starling.Core.View
+open Starling.Core.Var
 open Starling.Core.Model
 open Starling.Core.Command
 open Starling.Core.GuardedView
+open Starling.Core.Symbolic
 
 
 /// Calculate the multiset of ways that this View matches the pattern in dv and add to the assumulator.
@@ -45,7 +47,8 @@ let reifySingleDef view accumulator (dv : SVBViewDef<DView>) =
     matchMultipleViews (viewOf dv) view accumulator []
 
 /// Reifies an dvs entire view application.
-let reifyView (dvs : SVBViewDef<DView> List)  vap : SMViewSet =
+let reifyView (dvs : SVBViewDef<DView> List) vap
+  : ViewSet<Sym<MarkedVar>> =
     let goal = Multiset.toFlatList vap
     Seq.fold (reifySingleDef goal) Set.empty dvs |> Multiset.ofFlatSeq
 
@@ -58,6 +61,8 @@ let reifyTerm dvs =
 
 /// Reifies all of the terms in a model's axiom list.
 let reify
-  (model : Model<Term<'a, SMGView, OView>, ViewToSymBoolDefiner>)
-  : Model<Term<'a, SMViewSet, OView>, ViewToSymBoolDefiner> =
+  (model : Model<Term<'a, GView<Sym<MarkedVar>>, OView>,
+                 ViewToSymBoolDefiner>)
+  : Model<Term<'a, ViewSet<Sym<MarkedVar>>, OView>,
+          ViewToSymBoolDefiner> =
       mapAxioms (reifyTerm model.ViewDefs) model

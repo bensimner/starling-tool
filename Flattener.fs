@@ -68,7 +68,8 @@ let flattenFuncSeq
 /// </returns>
 let flattenTerm
   (globalsF : (Var -> MarkedVar) -> SMExpr seq)
-  : Term<_, SMViewSet, OView> -> Term<_, SMGView, SMVFunc> =
+  : Term<_, ViewSet<Sym<MarkedVar>>, OView>
+  -> Term<_, GView<Sym<MarkedVar>>, SMVFunc> =
     mapTerm id
             (mapItems (flattenFuncSeq (globalsF Before)))
             (flattenFuncSeq (globalsF After))
@@ -107,8 +108,10 @@ let flattenViewDef
 ///     The flattened model.
 /// </returns>
 let flatten
-  (model : Model<Term<_, SMViewSet, OView>, ViewToSymBoolDefiner>)
-  : Model<Term<_, SMGView, SMVFunc>, FuncToSymBoolDefiner> =
+  (model : Model<Term<_, ViewSet<Sym<MarkedVar>>, OView>,
+                 ViewToSymBoolDefiner>)
+  : Model<Term<_, GView<Sym<MarkedVar>>, SMVFunc>,
+          FuncToSymBoolDefiner> =
     /// Build a function making a list of global arguments, for view assertions.
     let globalsF marker = varMapToExprs (marker >> Reg) model.Globals
 

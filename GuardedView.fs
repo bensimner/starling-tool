@@ -100,21 +100,6 @@ module Types =
         Multiset<GFunc<'var>>
 
     /// <summary>
-    ///     A <c>GView</c> over <c>MarkedVar</c>s.
-    /// </summary>
-    type MGView = GView<MarkedVar>
-
-    /// <summary>
-    ///     A <c>GView</c> over symbolic <c>Var</c>s.
-    /// </summary>
-    type SVGView = GView<Sym<Var>>
-
-    /// <summary>
-    ///     A <c>GView</c> over symbolic <c>MarkedVar</c>s.
-    /// </summary>
-    type SMGView = GView<Sym<MarkedVar>>
-
-    /// <summary>
     ///     A multiset of guarded views, as produced by reification.
     /// </summary>
     /// <typeparam name="var">
@@ -122,16 +107,6 @@ module Types =
     /// </typeparam>
     type ViewSet<'var> when 'var : comparison =
         Multiset<Guarded<'var, OView>>
-
-    /// <summary>
-    ///     A <c>ViewSet</c> over <c>MarkedVar</c>s.
-    /// </summary>
-    type MViewSet = ViewSet<MarkedVar>
-
-    /// <summary>
-    ///     A <c>ViewSet</c> over symbolic <c>MarkedVar</c>s.
-    /// </summary>
-    type SMViewSet = ViewSet<Sym<MarkedVar>>
 
 
 (*
@@ -329,7 +304,7 @@ let pruneGuardedSet gset =
 /// Given a guarded View over Symbolic Var's return the set of all
 /// variables and their types that are in the view definition.
 /// </summary>
-let SVGViewVars : SVGView -> Set<TypedVar> =
+let SVGViewVars : GView<Sym<Var>> -> Set<TypedVar> =
     fun v ->
         let l = Multiset.toSet v
 
@@ -481,23 +456,24 @@ module Pretty =
     ///     Pretty-prints a guarded view over symbolic <c>Var</c>s.
     /// </summary>
     /// <param name="_arg1">
-    ///     The <c>SGView</c> to print.
+    ///     The view to print.
     /// </param>
     /// <returns>
-    ///     A pretty-printer command to print the <c>SGView</c>.
+    ///     A pretty-printer command to print the view.
     /// </returns>
-    let printSVGView : SVGView -> Doc = printGView (printSym String)
+    let printSVGView : GView<Sym<Var>> -> Doc = printGView (printSym String)
 
     /// <summary>
     ///     Pretty-prints a guarded view over symbolic <c>MarkedVar</c>s.
     /// </summary>
     /// <param name="_arg1">
-    ///     The <c>SMGView</c> to print.
+    ///     The view to print.
     /// </param>
     /// <returns>
-    ///     A pretty-printer command to print the <c>SMGView</c>.
+    ///     A pretty-printer command to print the view.
     /// </returns>
-    let printSMGView = printGView (printSym printMarkedVar)
+    let printSMGView : GView<Sym<MarkedVar>> -> Doc =
+        printGView (printSym printMarkedVar)
 
     /// <summary>
     ///     Pretty-prints a guarded view set.
@@ -519,24 +495,25 @@ module Pretty =
     ///     Pretty-prints a guarded view set over <c>MarkedVar</c>s.
     /// </summary>
     /// <param name="_arg1">
-    ///     The <c>MViewSet</c> to print.
+    ///     The view set to print.
     /// </param>
     /// <returns>
-    ///     A pretty-printer command to print the <c>MViewSet</c>.
+    ///     A pretty-printer command to print the view set.
     /// </returns>
-    let printMViewSet =
+    let printMViewSet : ViewSet<MarkedVar> -> Doc =
         printViewSet printMarkedVar
 
     /// <summary>
     ///     Pretty-prints a guarded view set over symbolic <c>MarkedVar</c>s.
     /// </summary>
     /// <param name="_arg1">
-    ///     The <c>SMViewSet</c> to print.
+    ///     The view set to print.
     /// </param>
     /// <returns>
-    ///     A pretty-printer command to print the <c>SMViewSet</c>.
+    ///     A pretty-printer command to print the view set.
     /// </returns>
-    let printSMViewSet = printViewSet (printSym printMarkedVar)
+    let printSMViewSet : ViewSet<Sym<MarkedVar>> -> Doc =
+        printViewSet (printSym printMarkedVar)
 
 /// <summary>
 ///     Functions for substituting over guarded views.
