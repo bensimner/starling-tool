@@ -40,6 +40,9 @@ module Types =
     /// A func over symbolic-marked-var expressions.
     type SMVFunc = ExprFunc<Sym<MarkedVar>>
 
+    type IteratedFuncContainer =
+        { Func : DFunc; Iterator : TypedVar option }
+
 
     (*
      * Views
@@ -55,7 +58,7 @@ module Types =
     type View = Multiset<SMVFunc>
 
     /// A view definition.
-    type DView = List<DFunc>
+    type DView = List<IteratedFuncContainer>
 
     /// <summary>
     ///     A basic view, as an ordered list of VFuncs.

@@ -35,25 +35,39 @@ let genFlatFuncSeqName (funcs : Func<'var> seq) : string =
     |> fun s -> if s = "v" then "emp" else s
 
 /// <summary>
-///     Constructs a Func from a func sequence, appending global variables.
+///     Constructs a Func from a DView
 /// </summary>
 /// <param name="globals">
-///     The set of active globals, in expression form, which will be appended
-///     into the Func's parameter list.
+///     Seq of names of active globals
 /// </param>
-/// <param name="funcs">
-///     The Func sequence to flatten.
+/// <param name="dview">
+///     The DView
 /// </param>
 /// <returns>
-///     A new SMVFunc containing all of the parameters of the constituent
-///     funcs, as well as the globals list, and a new unique name.
+///     A new Func containing all parameters of the individuals as well as their iterators
+///     with the shared variables appended
 /// </returns>
-let flattenFuncSeq
-  (globals : 'var seq)
-  (oview : Func<'var> seq)
-  : Func<'var> =
-    { Name = genFlatFuncSeqName oview
-      Params = oview |> paramsOfFuncSeq |> Seq.append globals |> List.ofSeq }
+let flattenDView : TypedVar seq -> DView -> Func<TypedVar> =
+    fun globals dview ->
+        let funcs = Seq.map (fun ifc -> ifc.Func) dview
+        let name = genFlatFuncSeqName funcs
+
+        let paramsFromIteratedFunc funcContainer =
+            match funcContainer.Iterator with
+            | None -> Seq.ofList <| funcContainer.Func.Params
+            | Some v -> Seq.append (seq {yield v;}) funcContainer.Func.Params
+
+        // TODO: What if iterators share names? e.g. iterated A [n] * iterated B [n]
+        let paramsNoShared = Seq.concat <| Seq.map paramsFromIteratedFunc dview
+        let paramsShared = Seq.toList <| Seq.append paramsNoShared globals
+        { Name = name
+          Params = paramsShared }
+
+/// Flattens an OView into an SMVFunc given the set of globals
+let flattenOView : Expr<Sym<MarkedVar>> seq -> OView -> SMVFunc =
+    fun globals oview ->
+        { Name = genFlatFuncSeqName oview 
+          Params = Seq.toList <| Seq.append (paramsOfFuncSeq oview) globals }
 
 /// <summary>
 ///     Flattens a term by converting all of its OViews into single funcs.
@@ -71,8 +85,8 @@ let flattenTerm
   : Term<_, ViewSet<Sym<MarkedVar>>, OView>
   -> Term<_, GView<Sym<MarkedVar>>, SMVFunc> =
     mapTerm id
-            (mapItems (flattenFuncSeq (globalsF Before)))
-            (flattenFuncSeq (globalsF After))
+            (mapItems (flattenOView (globalsF Before)))
+            (flattenOView (globalsF After))
 
 /// <summary>
 ///    Flattens all func sequences in a model, turning them into funcs.
@@ -110,7 +124,7 @@ let flatten
       ViewDefs =
           model.ViewDefs
           |> ViewDefiner.toSeq
-          |> Seq.map (pairMap (flattenFuncSeq globalsP) id)
+          |> Seq.map (pairMap (flattenDView globalsP) id)
           |> FuncDefiner.ofSeq
       Semantics = model.Semantics }
 
