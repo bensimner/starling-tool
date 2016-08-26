@@ -97,7 +97,7 @@ module Types =
     ///     with the guards lifting to proof case splits.
     /// </remarks>
     type GView<'var> when 'var : comparison =
-        Multiset<GFunc<'var>>
+        Multiset<IteratedContainer<GFunc<'var>>>
 
     /// <summary>
     ///     A multiset of guarded views, as produced by reification.
