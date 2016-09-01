@@ -33,7 +33,7 @@ module Types =
         | Func of SVFunc
 
     /// A conditional view, or multiset of CFuncs.
-    and CView = Multiset<IteratedContainer<CFunc>>
+    and CView = Multiset<IteratedContainer<CFunc, Sym<Var>>>
 
     /// A partially resolved command.
     type PartCmd<'view> =
@@ -193,7 +193,8 @@ module Pretty =
 
     /// Pretty-prints a CView.
     and printCView : CView -> Doc =
-        printMultiset (printIteratedContainer printCFunc) >> ssurround "[|" "|]"
+        printMultiset (printIteratedContainer printCFunc (printSym printVar))
+        >> ssurround "[|" "|]"
 
     /// Pretty-prints a part-cmd at the given indent level.
     let rec printPartCmd (pView : 'view -> Doc) : PartCmd<'view> -> Doc =
@@ -330,7 +331,7 @@ module Pretty =
 (*
  * Starling imperative language semantics
  *)
-let prim : string -> TypedVar list -> TypedVar list -> SVBoolExpr -> PrimSemantics =  
+let prim : string -> TypedVar list -> TypedVar list -> SVBoolExpr -> PrimSemantics =
     fun name results args body -> { Name = name; Results = results; Args = args; Body = body }
 
 /// <summary>
@@ -412,11 +413,11 @@ let coreSemantics : PrimSemanticsMap =
        *)
 
       // Integer local set
-      (prim "!ILSet" [ Int "dest" ] [ Int "src" ] 
+      (prim "!ILSet" [ Int "dest" ] [ Int "src" ]
            <| iEq (siVar "dest") (siVar "src"))
 
       // Boolean store
-      (prim "!BLSet" [ Bool "dest" ] [ Bool "src" ] 
+      (prim "!BLSet" [ Bool "dest" ] [ Bool "src" ]
            <| bEq (sbVar "dest") (sbVar "src"))
 
       (*
@@ -680,7 +681,7 @@ let rec modelViewSignature (protos : FuncDefiner<unit>) =
                                           let! rM = modelViewSignature protos r
                                           return Multiset.append lM rM }
     | ViewSignature.Iterated(dfunc, e) ->
-        let updateFunc (s : string) f = { Func = f; Iterator = Some (withType (Int()) s) }
+        let updateFunc (s : string) f = { Func = f; Iterator = Some (AVar s) }
         let modelledDFunc = modelDFunc protos dfunc
         (Multiset.map (updateFunc e)) <!> modelledDFunc
 
@@ -754,7 +755,7 @@ let inDefiner : ViewDefiner<SVBoolExpr option> -> DView -> bool =
                     if (List.length view = List.length dview)
                     then
                         List.forall2
-                            (fun (vdfunc : IteratedContainer<DFunc>) (dfunc : IteratedContainer<DFunc>) -> vdfunc.Func.Name = dfunc.Func.Name)
+                            (fun (vdfunc : IteratedContainer<DFunc, Var>) (dfunc : IteratedContainer<DFunc, Var>) -> vdfunc.Func.Name = dfunc.Func.Name)
                             view
                             dview
                     else false)
@@ -1091,7 +1092,7 @@ let modelFetch : MethodContext -> LValue -> Expression -> FetchMode -> Result<Pr
     | lv -> fail (BadAVar(lv, NotFound (flattenLV lv)))
 
 /// Converts a single atomic command from AST to part-commands.
-let rec modelAtomic : MethodContext -> Atomic -> Result<PrimCommand, PrimError> = 
+let rec modelAtomic : MethodContext -> Atomic -> Result<PrimCommand, PrimError> =
     fun ctx a ->
     match a.Node with
     | CompareAndSwap(dest, test, set) -> modelCAS ctx dest test set
@@ -1119,12 +1120,12 @@ let rec modelAtomic : MethodContext -> Atomic -> Result<PrimCommand, PrimError> 
         }
     | Id -> ok (command "Id" [] [])
     | Assume e ->
-        e 
+        e
         |> wrapMessages BadExpr (modelBoolExpr ctx.ThreadVars MarkedVar.Before)
         |> lift (Expr.Bool >> List.singleton >> command "Assume" [])
 
 /// Converts a local variable assignment to a Prim.
-and modelAssign : MethodContext -> LValue -> Expression -> Result<PrimCommand, PrimError> = 
+and modelAssign : MethodContext -> LValue -> Expression -> Result<PrimCommand, PrimError> =
     fun { ThreadVars = tvars } lLV e ->
     (* We model assignments as !ILSet or !BLSet, depending on the
      * type of l, which _must_ be in the locals set..
