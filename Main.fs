@@ -176,8 +176,11 @@ type Response =
     /// The result of semantic expansion.
     | Semantics of Model<GoalAxiom<SMBoolExpr>, ViewDefiner<BoolExpr<Sym<Var>> option>>
     /// The result of term generation.
-    | TermGen of Model<STerm<IteratedGView<Sym<MarkedVar>>, OView>,
+    | TermGen of Model<STerm<IteratedGView<Sym<MarkedVar>>, IteratedOView>,
                        ViewDefiner<BoolExpr<Sym<Var>> option>>
+    /// The result of term generation.
+    | IterLower of Model<STerm<GView<Sym<MarkedVar>>, OView>,
+                         ViewDefiner<BoolExpr<Sym<Var>> option>>
     /// The result of term reification.
     | Reify of Model<STerm<ViewSet<Sym<MarkedVar>>, OView>,
                      ViewDefiner<BoolExpr<Sym<Var>> option>>
@@ -227,15 +230,11 @@ let printResponse (mview : ModelView) : Response -> Doc =
     | List l -> printList String l
     | Frontend f -> Lang.Frontend.printResponse mview f
     | GraphOptimise g -> printVModel printGraph g
-    | Axiomatise m ->
-        printVModel
-            (printAxiom (printIteratedGView (printSym printVar)) printCommand) m
+    | Axiomatise m -> printVModel (printAxiom printIteratedSVGView printCommand) m
     | GoalAdd m -> printVModel (printGoalAxiom printCommand) m
     | Semantics m -> printVModel (printGoalAxiom printSMBoolExpr) m
-    | TermGen m ->
-        printVModel
-            (printSTerm
-                (printIteratedGView (printSym printMarkedVar)) printOView) m
+    | TermGen m -> printVModel (printSTerm printIteratedSMGView printIteratedOView) m
+    | IterLower m -> printVModel (printSTerm printSMGView printOView) m
     | Reify m -> printVModel (printSTerm printSMViewSet printOView) m
     | Flatten m -> printFModel (printSTerm printSMGView printSMVFunc) m
     | TermOptimise m -> printFModel (printSTerm printSMGView printSMVFunc) m
@@ -423,6 +422,7 @@ let runStarling (request : Request)
     let flatten = lift Starling.Flattener.flatten
     let reify = lift Starling.Reifier.reify
     let termGen = lift Starling.TermGen.termGen
+    let iterLower = lift Starling.TermGen.Iter.flatten
     let goalAdd = lift Starling.Core.Axiom.goalAdd
     let semantics =
         bind (Starling.Semantics.translate
@@ -489,9 +489,9 @@ let runStarling (request : Request)
                  else id)
 
 
-        // Magic function for unwrapping / wrapping Result types
-        // TODO: make less horrible, e.g. by using some non-result-wrapped type from z3
-        let tuplize f y = (y >>= fun x -> (lift (fun a -> (a,x)) (f y)) )
+        // Magic function for unwrapping / wrapping Result types 
+        // TODO: make less horrible, e.g. by using some non-result-wrapped type from z3 
+        let tuplize f y = (y >>= fun x -> (lift (fun a -> (a,x)) (f y)) ) 
 
         match request with
         | Request.SymProof    -> phase symproof Response.SymProof
@@ -531,6 +531,7 @@ let runStarling (request : Request)
     ** phase  goalAdd        Request.GoalAdd        Response.GoalAdd
     ** phase  semantics      Request.Semantics      Response.Semantics
     ** phase  termGen        Request.TermGen        Response.TermGen
+    ** phase  iterLower      Request.IterLower      Response.IterLower
     ** phase  reify          Request.Reify          Response.Reify
     ** phase  flatten        Request.Flatten        Response.Flatten
     ** phase  termOptimise   Request.TermOptimise   Response.TermOptimise
