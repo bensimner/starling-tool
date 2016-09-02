@@ -487,9 +487,9 @@ let runStarling (request : Request)
                  else id)
 
 
-        // Magic function for unwrapping / wrapping Result types 
-        // TODO: make less horrible, e.g. by using some non-result-wrapped type from z3 
-        let tuplize f y = (y >>= fun x -> (lift (fun a -> (a,x)) (f y)) ) 
+        // Magic function for unwrapping / wrapping Result types
+        // TODO: make less horrible, e.g. by using some non-result-wrapped type from z3
+        let tuplize f y = (y >>= fun x -> (lift (fun a -> (a,x)) (f y)) )
 
         match request with
         | Request.SymProof    -> phase symproof Response.SymProof
