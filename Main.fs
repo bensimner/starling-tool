@@ -169,14 +169,14 @@ type Response =
     /// Stop at graph optimisation.
     | GraphOptimise of Model<Graph, ViewDefiner<BoolExpr<Sym<Var>> option>>
     /// Stop at graph axiomatisation.
-    | Axiomatise of Model<Axiom<GView<Sym<Var>>, Command>,
+    | Axiomatise of Model<Axiom<IteratedGView<Sym<Var>>, Command>,
                           ViewDefiner<BoolExpr<Sym<Var>> option>>
     /// The result of goal-axiom-pair generation.
     | GoalAdd of Model<GoalAxiom<Command>, ViewDefiner<BoolExpr<Sym<Var>> option>>
     /// The result of semantic expansion.
     | Semantics of Model<GoalAxiom<SMBoolExpr>, ViewDefiner<BoolExpr<Sym<Var>> option>>
     /// The result of term generation.
-    | TermGen of Model<STerm<GView<Sym<MarkedVar>>, OView>,
+    | TermGen of Model<STerm<IteratedGView<Sym<MarkedVar>>, OView>,
                        ViewDefiner<BoolExpr<Sym<Var>> option>>
     /// The result of term reification.
     | Reify of Model<STerm<ViewSet<Sym<MarkedVar>>, OView>,
@@ -227,10 +227,15 @@ let printResponse (mview : ModelView) : Response -> Doc =
     | List l -> printList String l
     | Frontend f -> Lang.Frontend.printResponse mview f
     | GraphOptimise g -> printVModel printGraph g
-    | Axiomatise m -> printVModel (printAxiom printSVGView printCommand) m
+    | Axiomatise m ->
+        printVModel
+            (printAxiom (printIteratedGView (printSym printVar)) printCommand) m
     | GoalAdd m -> printVModel (printGoalAxiom printCommand) m
     | Semantics m -> printVModel (printGoalAxiom printSMBoolExpr) m
-    | TermGen m -> printVModel (printSTerm printSMGView printOView) m
+    | TermGen m ->
+        printVModel
+            (printSTerm
+                (printIteratedGView (printSym printMarkedVar)) printOView) m
     | Reify m -> printVModel (printSTerm printSMViewSet printOView) m
     | Flatten m -> printFModel (printSTerm printSMGView printSMVFunc) m
     | TermOptimise m -> printFModel (printSTerm printSMGView printSMVFunc) m
@@ -484,9 +489,9 @@ let runStarling (request : Request)
                  else id)
 
 
-        // Magic function for unwrapping / wrapping Result types 
-        // TODO: make less horrible, e.g. by using some non-result-wrapped type from z3 
-        let tuplize f y = (y >>= fun x -> (lift (fun a -> (a,x)) (f y)) ) 
+        // Magic function for unwrapping / wrapping Result types
+        // TODO: make less horrible, e.g. by using some non-result-wrapped type from z3
+        let tuplize f y = (y >>= fun x -> (lift (fun a -> (a,x)) (f y)) )
 
         match request with
         | Request.SymProof    -> phase symproof Response.SymProof
