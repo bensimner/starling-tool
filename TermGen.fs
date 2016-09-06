@@ -226,18 +226,18 @@ module Iter =
                 let vfunc =
                     // TODO: Better system for matching
                     // the "None" condition is not sufficient after TermGen
-                    match it with
-                    | Some x -> func gfunc.Name (Int x :: gfunc.Params)
-                    | None   -> gfunc
+                    func gfunc.Name (Int (match it with
+                                          | Some x -> x
+                                          | None   -> AInt 1L) :: gfunc.Params)
                 { Cond = cond; Item = vfunc }
 
     /// Lowers an IteratedSMVFunc into an SMVFunc moving the Iterator Expression into the params
     let lowerIterSMVFunc : IteratedContainer<SMVFunc, IntExpr<Sym<MarkedVar>>> -> SMVFunc =
         fun { Func = vfunc; Iterator = it } ->
-            // TODO: See lowerIterGFunc
-            match it with
-            | Some x -> func vfunc.Name (Int x :: vfunc.Params)
-            | None   -> vfunc
+            func vfunc.Name
+                (Int (match it with
+                      | Some x -> x
+                      | None   -> AInt 1L) :: vfunc.Params)
 
     /// flattens an entire IteratedGView into a flat GView
     let lowerIteratedGView : IteratedGView<Sym<MarkedVar>> -> GView<Sym<MarkedVar>> =

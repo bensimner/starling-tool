@@ -124,7 +124,12 @@ let checkParamCount (func : Func<'a>) : (Func<'b> * 'c) option -> Result<(Func<'
     | Some def ->
         let fn = List.length func.Params
         let dn = List.length (fst def).Params
-        if fn = dn then ok (Some def) else CountMismatch (fn, dn) |> fail
+        if fn = dn then ok (Some def) else 
+            eprintfn "checkParamCount"
+            eprintfn "funca -> %A" func
+            eprintfn "def   -> %A" def
+            eprintfn "fn(%d) != dn(%d)" fn dn
+            CountMismatch (fn, dn) |> fail
 
 let checkParamCountPrim : PrimCommand -> PrimSemantics option -> Result<PrimSemantics option, Error> =
     fun prim opt ->

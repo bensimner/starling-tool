@@ -314,13 +314,13 @@ let ticketLockParsed =
               Line = 34L; Column = 1L }
         Node =
             ViewProto <|
-                NoIterator ({ Name = "holdTick"; Params = [Int "t"] }, false) }
+                ({ Name = "holdTick"; Params = [Int "t"] }) }
       { Position =
             { StreamName = "Examples/Pass/ticketLock.cvf"
               Line = 35L; Column = 1L }
         Node =
             ViewProto <|
-                NoIterator ({ Name = "holdLock"; Params = [] }, false) }
+                ({ Name = "holdLock"; Params = [] }) }
       { Position = {StreamName = "Examples/Pass/ticketLock.cvf";
                    Line = 38L;
                    Column = 1L;};
@@ -395,8 +395,8 @@ let ticketLockCollated =
             (TypedVar.Int "s") ]
       Search = None
       VProtos =
-          [ NoIterator ({ Name = "holdTick"; Params = [ (Int "t") ] }, false)
-            NoIterator ({ Name = "holdLock"; Params = [] }, false) ]
+          [ ({ Name = "holdTick"; Params = [ (Int "t") ] })
+            ({ Name = "holdLock"; Params = [] }) ]
       Constraints =
           [ // constraint emp -> ticket >= serving;
             ticketLockConstraint01
@@ -553,12 +553,11 @@ let ticketLockViewDefs =
           Iterator = None } ],
       Some BFalse) ]
 
-let ticketLockViewProtos : FuncDefiner<ProtoInfo> =
+let ticketLockViewProtos : FuncDefiner<unit> =
+    let holdTick = { Name = "holdTick"; Params = [ Int "t" ] }
+    let holdLock = { Name = "holdLock"; Params = [] }
     FuncDefiner.ofSeq
-        [ ({ Name = "holdTick"; Params = [ Int "t" ] },
-           { IsIterated = false; IsAnonymous = false })
-          ({ Name = "holdLock"; Params = [] },
-           { IsIterated = false; IsAnonymous = false }) ]
+        [ holdTick, (); holdLock, (); ]
 
 /// The model of the ticket lock.
 let ticketLockModel : Model<ModellerMethod, ViewDefiner<SVBoolExpr option>> =
@@ -570,5 +569,4 @@ let ticketLockModel : Model<ModellerMethod, ViewDefiner<SVBoolExpr option>> =
                        ("t", Type.Int ()) ]
       Axioms = ticketLockMethods
       ViewDefs = ticketLockViewDefs
-      ViewProtos = ticketLockViewProtos
       Semantics = Starling.Lang.Modeller.coreSemantics }
