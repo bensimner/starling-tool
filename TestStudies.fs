@@ -571,4 +571,4 @@ let ticketLockModel : Model<ModellerMethod, ViewDefiner<SVBoolExpr option>> =
       Axioms = ticketLockMethods
       ViewDefs = ticketLockViewDefs
       ViewProtos = ticketLockViewProtos
-      Semantics = Starling.Lang.Modeller.coreSemantics }
+      Semantics = Starling.Lang.Modeller.Main.coreSemantics }

@@ -156,7 +156,7 @@ let run
 
     let parse = Parser.parseFile >> mapMessages Error.Parse
     let collate = lift Collator.collate
-    let model = bind (Modeller.model >> mapMessages Error.Model)
+    let model = bind (Modeller.Main.model >> mapMessages Error.Model)
     let guard = lift Guarder.guard
     let graph = bind (Grapher.graph >> mapMessages Error.Graph)
 

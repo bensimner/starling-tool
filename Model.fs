@@ -196,18 +196,6 @@ module Pretty =
       : STerm<'WPre, 'Goal> -> Doc =
         printTerm printSMBoolExpr pWPre pGoal
 
-    /// <summary>
-    ///     Pretty-prints an uninterpreted symbol.
-    /// </summary>
-    /// <param name="s">
-    ///     The value of the symbol.
-    /// </param>
-    /// <returns>
-    ///     A command printing <c>%{s}</c>.
-    /// </returns>
-    let printSymbol (s : string) : Doc =
-        hjoin [ String "%" ; s |> String |> braced ]
-
     /// Pretty-prints the axiom map for a model.
     let printModelAxioms
       (pAxiom : 'Axiom -> Doc)

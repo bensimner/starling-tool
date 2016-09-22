@@ -62,7 +62,7 @@ module ViewPass =
             (Multiset.singleton (CFunc.Func (vfunc "holdLock" [])))
 
 module ViewFail =
-    let check (view : View) (expectedFailures : ViewError list) =
+    let check (view : View) (expectedFailures : View.Error list) =
         let actualErrors = failOption <| modelCView context view
         AssertAreEqual(Some expectedFailures, actualErrors)
 
@@ -89,7 +89,7 @@ module ViewFail =
 
 module ArithmeticExprs =
     let check (ast : Expression) (expectedExpr : IntExpr<Sym<Var>>) =
-        let actualIntExpr = okOption <| modelIntExpr environ id ast
+        let actualIntExpr = okOption <| modelInt environ id ast
         AssertAreEqual(Some expectedExpr, actualIntExpr)
 
     [<Test>]
@@ -102,7 +102,7 @@ module ArithmeticExprs =
 
 module BooleanExprs =
     let check (ast : Expression) (expectedExpr : BoolExpr<Sym<Var>>) =
-        let actualBoolExpr = okOption <| modelBoolExpr environ id ast
+        let actualBoolExpr = okOption <| modelBool environ id ast
         AssertAreEqual(Some expectedExpr, actualBoolExpr)
 
     [<Test>]

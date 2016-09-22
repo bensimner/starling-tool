@@ -64,6 +64,9 @@
     <Compile Include="Collator.fs" />
     <Compile Include="ViewDesugar.fs" />
     <Compile Include="Instantiate.fs" />
+    <Compile Include="Modeller.Expr.fs" />
+    <Compile Include="Modeller.View.fs" />
+    <Compile Include="Modeller.Definer.fs" />
     <Compile Include="Modeller.fs" />
     <Compile Include="Guarder.fs" />
     <Compile Include="Grapher.fs" />

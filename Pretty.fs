@@ -13,6 +13,7 @@ type FontColor =
 /// Type of pretty-printer commands.
 [<NoComparison>]
 type Doc =
+    | Truncate of truncated : Doc
     | Header of heading : Doc * Doc
     | Separator
     | String of string
@@ -28,7 +29,7 @@ type Doc =
 /// Determines whether a print construct is horizontal or vertical.
 let rec (|Horizontal|Vertical|) =
     function
-    | (VSep(_, _) | VSkip | Separator | Header (_, _) | Surround (_, Vertical _, _) | Indent (Vertical _)) as a -> Vertical a
+    | (VSep(_) | VSkip | Separator | Header (_) | Surround (_, Vertical _, _) | Indent (Vertical _)) as a -> Vertical a
     | a -> Horizontal a
 
 (*
@@ -70,7 +71,7 @@ let stylise s d =
         | Yellow -> 3
         | Blue -> 4
         | Magenta -> 5
-        | Cyan -> 6 
+        | Cyan -> 6
         | White -> 7
 
     let code c = sprintf "%u" (30 + colCode c)
@@ -104,6 +105,12 @@ type PrintState =
 /// </returns>
 let rec printState state =
     function
+    | Truncate t ->
+        // TODO(CaptainHayashi): probably an off by one error here.
+        let s : string = printState state t
+        if s.Length > 77
+        then (s.Substring(0, 77) + "...")
+        else s
     | Header (heading, incmd) ->
         printState state heading + ":" + lnIndent state.Level + printState state incmd + lnIndent state.Level
     | Separator ->
@@ -151,16 +158,16 @@ let print = if config().color then printStyled else printUnstyled
  *)
 
 
-// Hacky merge between two VSep sequences 
-let vmerge a b = 
+// Hacky merge between two VSep sequences
+let vmerge a b =
   let rec interleave = function //same as: let rec interleave (xs, ys) = match xs, ys with
     |([], ys) -> ys
     |(xs, []) -> xs
     |(x::xs, y::ys) -> x :: y :: interleave (xs,ys)
 
-  match a, b with 
-    | (VSep (xs, i), VSep (ys, j))  -> 
-           let xy = interleave (List.ofSeq xs, List.ofSeq ys) in 
+  match a, b with
+    | (VSep (xs, i), VSep (ys, j))  ->
+           let xy = interleave (List.ofSeq xs, List.ofSeq ys) in
            VSep (Seq.ofList xy, Nop)
     | _ -> Nop
 

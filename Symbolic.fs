@@ -329,6 +329,18 @@ module Pretty =
     open Starling.Core.Var.Pretty
 
     /// <summary>
+    ///     Pretty-prints an uninterpreted symbol.
+    /// </summary>
+    /// <param name="s">
+    ///     The value of the symbol.
+    /// </param>
+    /// <returns>
+    ///     A command printing <c>%{s}</c>.
+    /// </returns>
+    let printSymbol (s : string) : Doc =
+        hjoin [ String "%" ; s |> String |> braced ]
+
+    /// <summary>
     ///     Pretty-prints a <c>Sym</c>.
     /// </summary>
     /// <param name="pReg">
@@ -341,7 +353,8 @@ module Pretty =
     let rec printSym pReg =
         function
         | Sym { Name = sym ; Params = regs } ->
-            func (sprintf "%%{%s}" sym) (Seq.map (printExpr (printSym pReg)) regs)
+            hjoin [ printSymbol sym
+                    regs |> Seq.map (printExpr (printSym pReg)) |> commaSep |> parened ]
         | Reg reg -> pReg reg
 
     /// Pretty-prints a SVExpr.
