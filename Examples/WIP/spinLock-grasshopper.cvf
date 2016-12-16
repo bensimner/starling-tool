@@ -11,15 +11,15 @@ shared Int heap;
 thread Lock x, ret;
 thread Bool test;  // Used when trying to take the lock.
 
-view newLock(Lock x), holdLock(Lock x), isLock(Lock x); 
+view newLock(Lock x), holdLock(Lock x), isLock(Lock x);
 
-method newLock() { 
-  {| emp |} 
-    ret = %{new Lock}(); 
-  {| isLock(ret) * newLock(ret) |} 
+/*method newLock() {
+  {| emp |}
+    ret = %{new Lock}();
+  {| isLock(ret) * newLock(ret) |}
     <%{#1.lock := false}(ret)[heap]>;
   {| isLock(ret) |}
-}
+}*/
 
 method lock(Lock x) {
   {| isLock(x) |}
@@ -29,7 +29,7 @@ method lock(Lock x) {
       {| if test == false then isLock(x) else False() |}
         test = %{ CAS_to_true(#1) }(x);
       {| if test == false then isLock(x) else holdLock(x) |}
-    } while (test == true);
+    } while (test == false);
   {| holdLock(x) |}
 }
 
@@ -49,6 +49,7 @@ method split(Lock x) {
 view False();
 constraint False() -> false;
 
-constraint holdLock(x)  ->  %{ #1 in LockFoot && #1.lock == true }(x); 
-constraint isLock(x)  ->  %{ #1 in LockFoot }(x); 
+constraint holdLock(x)  ->  %{ #1 in LockFoot && #1.lock == true }(x);
+constraint isLock(x)  ->  %{ #1 in LockFoot }(x);
 
+constraint holdLock(x) * holdLock(y) -> x != y;
