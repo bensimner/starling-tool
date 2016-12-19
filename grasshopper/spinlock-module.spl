@@ -16,3 +16,4 @@ procedure CAS_to_true(x: Lock, implicit ghost lstate: Bool)
     return false;
   }
 }
+
