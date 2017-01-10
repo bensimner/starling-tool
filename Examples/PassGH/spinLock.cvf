@@ -7,18 +7,16 @@ pragma grasshopper_include {./grasshopper/spinlock-module.spl};
 pragma grasshopper_footprint {LockFoot};
 pragma grasshopper_footprint_sort {Set<Lock>};
 
-shared int heap;
-
 thread Lock x, ret;
-thread Bool test;  // Used when trying to take the lock.
+thread bool test;  // Used when trying to take the lock.
 
 view newLock(Lock x), holdLock(Lock x), isLock(Lock x);
 
 method newLock() {
   {| emp |}
     ret = %{new Lock}();
-  {| newLock(ret) |} 
-    <%{#1.lock := false}(ret)[heap]>; 
+  {| newLock(ret) |}
+    <%{#1.lock := false}(ret)[]>;
   {| isLock(ret) |}
 }
 
@@ -36,7 +34,7 @@ method lock(Lock x) {
 
 method unlock(Lock x) {
   {| holdLock(x) |}
-    <%{#1.lock := false}(x)[heap]>;
+    <%{#1.lock := false}(x)[]>;
   {| isLock(x) |}
 }
 
@@ -51,11 +49,11 @@ view False();
 constraint False() -> false;
 
 constraint holdLock(x)  ->  %{ #1 in LockFoot && #1.lock == true }(x);
-constraint isLock(x)  ->  %{ #1 in LockFoot }(x);
-constraint newLock(x)  ->  %{ #1 in LockFoot }(x);
+constraint isLock(x)    ->  %{ #1 in LockFoot }(x);
+constraint newLock(x)   ->  %{ #1 in LockFoot }(x);
 
-constraint isLock(x) * newLock(y) ->  x != y; 
-constraint holdLock(x) * newLock(y) ->  x != y; 
-constraint newLock(x) * newLock(y) -> x != y; 
+constraint isLock(x)   * newLock(y)   ->  x != y;
+constraint holdLock(x) * newLock(y)   ->  x != y;
+constraint newLock(x)  * newLock(y)   ->  x != y;
 
-constraint holdLock(x) * holdLock(y) -> x != y;
+constraint holdLock(x) * holdLock(y)  ->  x != y;
