@@ -150,9 +150,23 @@ module Expr =
 /// </summary>
 module Run =
     /// <summary>
+    ///     A Z3 Proof
+    /// </summary>
+    type ZProof = Z3.Model
+
+    /// <summary>
     ///     Runs Z3 on a single Boolean Z3 expression.
     /// </summary>
-    let runTerm (ctx: Z3.Context) term =
+    let runTerm (ctx: Z3.Context) term : Z3.Status * ZProof option =
         let solver = ctx.MkSimpleSolver ()
         solver.Assert [| term |]
-        solver.Check ()
+        let s = solver.Check ()
+        let p =
+            match s with
+            | Z3.Status.SATISFIABLE ->
+                try
+                    Some (solver.get_Model ())
+                with
+                | :? Z3.Z3Exception -> None
+            | _ -> None
+        (s, p)

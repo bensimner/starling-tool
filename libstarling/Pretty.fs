@@ -168,6 +168,8 @@ let printUnstyled = printState { Level = 0; CurrentStyle = None; UseStyles = fal
 let vsep xs = VSep(xs, Nop)
 let hsepStr s c = HSep(c, String s)
 
+let starsep xs = HSep(xs, String "*")
+
 /// Horizontally joins a list of commands with no separator.
 let hjoin c = HSep(c, Nop)
 /// Horizontally separates a list of commands with a space separator.

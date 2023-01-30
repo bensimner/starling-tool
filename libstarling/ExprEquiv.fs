@@ -49,7 +49,7 @@ let equivHolds
     use ctx = new Z3.Context ()
     let term = ctx.MkNot (e toVar ctx)
     match (Run.runTerm ctx term) with
-    | Z3.Status.UNSATISFIABLE -> true
+    | (Z3.Status.UNSATISFIABLE, _) -> true
     | _ -> false
 
 /// <summary>

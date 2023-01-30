@@ -15,6 +15,8 @@
 /// </summary>
 module Starling.Backends.Z3
 
+open System.Collections.Generic
+
 open Microsoft
 open Starling
 open Starling.Utils
@@ -61,7 +63,13 @@ module Types =
           /// <summary>
           ///     The proof status of this term.
           /// </summary>
-          Status: Z3.Status option }
+          Status: Z3.Status option
+
+          /// <summary>
+          ///     The (unsat) proof if it exists
+          /// </summary>
+          Proof: Starling.Core.Z3.Run.ZProof option
+          }
 
     /// <summary>
     ///     Type of models coming out of the Z3 prover.
@@ -178,7 +186,7 @@ module Pretty =
               colonSep [ String "Status"; printMaybeSat zterm.Status ] ]
 
     let fmtViewList (l : Doc list) : Doc =
-        if l.IsEmpty then String "the invariant" else vsep l
+        if l.IsEmpty then String "the invariant" else starsep l
 
     let headedStanza heading = function
         | [] -> errorStr heading <+> errorInfoStr "(empty)"
@@ -262,13 +270,25 @@ module Pretty =
                 yield! vconf.MakeBackendTranslation term.SymBool.Goal
             }
 
-        member private vconf.MakeEntailmentFailureBody wpreStanza goalStanza =
+        member private vconf.PrintProof (p : Z3.Model) : Doc =
+
+            String ($"{p}")
+
+        member private vconf.MakeProofStanza(term: ZTerm) : Doc seq =
+            seq {
+                match term.Proof with
+                | Some p -> yield vconf.PrintProof p
+                | _ -> ()
+            }
+
+        member private vconf.MakeEntailmentFailureBody wpreStanza goalStanza proofStanza =
             [ errHeaded "Could not prove that the view" wpreStanza
-              errHeaded "semantically entails" goalStanza ]
+              errHeaded "semantically entails" goalStanza
+              errHeaded "proof" proofStanza ]
 
         member private vconf.MakeCommandFailureBody
           (cmd : Core.Command.Types.CommandSemantics<BoolExpr<Sym<MarkedVar>>>)
-          wpreStanza goalStanza =
+          wpreStanza goalStanza proofStanza =
             let cmdStanza =
                 List.ofSeq (
                     seq {
@@ -278,7 +298,8 @@ module Pretty =
                 )
             [ headedStanza "Could not prove action" cmdStanza
               headedStanza "under weakest precondition" wpreStanza
-              headedStanza "establishes" goalStanza ]
+              headedStanza "establishes" goalStanza
+              headedStanza "proof" proofStanza ]
 
         /// <summary>
         ///     Pretty-prints a <see cref="ZTerm"/> as a failure report.
@@ -294,14 +315,15 @@ module Pretty =
 
             let wpreStanza = List.ofSeq (vconf.MakeWPreStanza term)
             let goalStanza = List.ofSeq (vconf.MakeGoalStanza term)
+            let proofStanza = List.ofSeq (vconf.MakeProofStanza term)
 
             (* Show a more friendly body if the command is empty, ie. this is a
                semantic entailment rather than a command step. *)
             let cmd = term.Original.Cmd
             let body =
                 if cmd.Cmd.IsEmpty
-                then vconf.MakeEntailmentFailureBody wpreStanza goalStanza
-                else vconf.MakeCommandFailureBody cmd wpreStanza goalStanza
+                then vconf.MakeEntailmentFailureBody wpreStanza goalStanza proofStanza
+                else vconf.MakeCommandFailureBody cmd wpreStanza goalStanza proofStanza
 
             (errorContextStr name <+> printMaybeSat term.Status, vsep body)
 
@@ -368,7 +390,10 @@ module Pretty =
 let runZ3OnModel (shouldUseRealsForInts : bool)
   (model : Model<SymProofTerm, FuncDefiner<BoolExpr<Sym<Var>> option>>)
   : ZModel =
-    use ctx = new Z3.Context ()
+    let cfg = Dictionary<string,string>();
+    cfg.Add("proof", "true")
+    cfg.Add("unsat_core", "true")
+    use ctx = new Z3.Context (cfg)
 
     // Save us from having to supply all of these arguments every time.
     // TODO(CaptainHayashi): subtypes?
@@ -401,7 +426,8 @@ let runZ3OnModel (shouldUseRealsForInts : bool)
             { Original = term.Original
               SymBool = term.SymBool
               Z3 = None
-              Status = None }
+              Status = None
+              Proof = None }
 
         // Now, see if we can fill them in.
         match cmdO, wpreO, goalO with
@@ -422,9 +448,9 @@ let runZ3OnModel (shouldUseRealsForInts : bool)
             let combined = toZ3 (mkAnd [ cmd; wpre; mkNot goal ])
 
             // This bit actually runs Z3 on the term.
-            let s = Starling.Core.Z3.Run.runTerm ctx combined
+            let (s, p) = Starling.Core.Z3.Run.runTerm ctx combined
 
-            { zTermWithNoZ3 with Z3 = Some z; Status = Some s }
+            { zTermWithNoZ3 with Z3 = Some z; Status = Some s; Proof = p }
         | _ -> zTermWithNoZ3
 
     mapAxioms z3Term model
