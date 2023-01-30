@@ -213,7 +213,11 @@ module Pretty =
           /// <summary>
           ///     Whether to show all iterators in printed views.
           /// </summary>
-          ShowAllIterators : bool }
+          ShowAllIterators : bool
+          /// <summary>
+          ///   Whether to show the output Z3 model for failures
+          /// </summary>
+          ShowModel : bool }
 
         member private vconf.PrintWPre wpre =
             let pvar = printSym printMarkedVar
@@ -272,6 +276,10 @@ module Pretty =
 
         member private vconf.PrintProof (p : Z3.Model) : Doc =
 
+            (* TODO: pretty-print Z3 Model
+             * Currently, this just tostrings it, which gets us the smtlib representation
+             * which, while not great, is far better than nothing.
+             *)
             String ($"{p}")
 
         member private vconf.MakeProofStanza(term: ZTerm) : Doc seq =
@@ -282,9 +290,12 @@ module Pretty =
             }
 
         member private vconf.MakeEntailmentFailureBody wpreStanza goalStanza proofStanza =
-            [ errHeaded "Could not prove that the view" wpreStanza
-              errHeaded "semantically entails" goalStanza
-              errHeaded "proof" proofStanza ]
+            seq {
+              yield errHeaded "Could not prove that the view" wpreStanza
+              yield errHeaded "semantically entails" goalStanza
+              if vconf.ShowModel then
+                yield errHeaded "countermodel" proofStanza
+            }
 
         member private vconf.MakeCommandFailureBody
           (cmd : Core.Command.Types.CommandSemantics<BoolExpr<Sym<MarkedVar>>>)
@@ -296,10 +307,13 @@ module Pretty =
                         yield! vconf.MakeBackendTranslation cmd.Semantics
                     }
                 )
-            [ headedStanza "Could not prove action" cmdStanza
-              headedStanza "under weakest precondition" wpreStanza
-              headedStanza "establishes" goalStanza
-              headedStanza "proof" proofStanza ]
+            seq {
+              yield headedStanza "Could not prove action" cmdStanza
+              yield headedStanza "under weakest precondition" wpreStanza
+              yield headedStanza "establishes" goalStanza
+              if vconf.ShowModel then
+                yield headedStanza "countermodel" proofStanza
+            }
 
         /// <summary>
         ///     Pretty-prints a <see cref="ZTerm"/> as a failure report.
@@ -372,7 +386,8 @@ module Pretty =
         { ShowBackendTranslation = false
           ShowReifiedWPre = false
           ShowFlattenedGoal = false
-          ShowAllIterators = false }
+          ShowAllIterators = false
+          ShowModel = false }
 
 /// <summary>
 ///     Uses Z3 to mark some proof terms as eliminated.

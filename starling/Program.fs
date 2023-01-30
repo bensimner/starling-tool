@@ -231,6 +231,11 @@ module private ViewConfig =
               ("show-backend-translation",
                ("Emit the backend translations in proof failures.",
                  updateZ3 (fun ps -> { ps with ShowBackendTranslation = true })))
+              ("show-model",
+                ("Emit the Z3 output model in proof failures.",
+                updateZ3 (fun ps ->
+                    { ps with
+                        ShowModel = true })))
               ("list",
                ("Lists all view options.",
                 fun ps ->
