@@ -163,10 +163,6 @@ module Run =
         let s = solver.Check ()
         let p =
             match s with
-            | Z3.Status.SATISFIABLE ->
-                try
-                    Some (solver.get_Model ())
-                with
-                | :? Z3.Z3Exception -> None
+            | Z3.Status.SATISFIABLE -> Some solver.Model
             | _ -> None
         (s, p)

@@ -285,7 +285,7 @@ module Pretty =
                     if not (f.Arity.Equals(0u))
                         then failwith "Unknown Z3 output model format, expected zero arity declarations only."
 
-                    let name = printMarkedVar <| markVar $"{f.get_Name()}";
+                    let name = printMarkedVar <| markVar $"{f.Name}";
                     assert (f.Arity.Equals(0u));
                     let body = String $"{p.ConstInterp(f)}";
                     yield cmdSexpr "=" [name; body]
@@ -416,10 +416,7 @@ module Pretty =
 let runZ3OnModel (shouldUseRealsForInts : bool)
   (model : Model<SymProofTerm, FuncDefiner<BoolExpr<Sym<Var>> option>>)
   : ZModel =
-    let cfg = Dictionary<string,string>();
-    cfg.Add("proof", "true")
-    cfg.Add("unsat_core", "true")
-    use ctx = new Z3.Context (cfg)
+    use ctx = new Z3.Context ()
 
     // Save us from having to supply all of these arguments every time.
     // TODO(CaptainHayashi): subtypes?
