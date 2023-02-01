@@ -66,7 +66,7 @@ module Types =
           Status: Z3.Status option
 
           /// <summary>
-          ///     The (unsat) proof if it exists
+          ///     The proof if it exists
           /// </summary>
           Proof: Starling.Core.Z3.Run.ZProof option
           }
@@ -275,12 +275,23 @@ module Pretty =
             }
 
         member private vconf.PrintProof (p : Z3.Model) : Doc =
+            let decls = p.Decls
 
-            (* TODO: pretty-print Z3 Model
-             * Currently, this just tostrings it, which gets us the smtlib representation
-             * which, while not great, is far better than nothing.
-             *)
-            String ($"{p}")
+            if not (p.Decls.Length = p.ConstDecls.Length)
+                then failwith "Unknown Z3 output model format, expected only constant declarations"
+
+            let vars = seq {
+                for f in decls do
+                    if not (f.Arity.Equals(0u))
+                        then failwith "Unknown Z3 output model format, expected zero arity declarations only."
+
+                    let name = printMarkedVar <| markVar $"{f.get_Name()}";
+                    assert (f.Arity.Equals(0u));
+                    let body = String $"{p.ConstInterp(f)}";
+                    yield cmdSexpr "=" [name; body]
+            }
+
+            svexpr "model" id vars
 
         member private vconf.MakeProofStanza(term: ZTerm) : Doc seq =
             seq {

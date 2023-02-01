@@ -3,6 +3,9 @@
 /// </summary>
 module Starling.Core.Var
 
+open System.Numerics
+open System.Text.RegularExpressions
+
 open Chessie.ErrorHandling
 
 open Starling.Utils
@@ -139,6 +142,29 @@ let unmarkVar : MarkedVar -> Var =
     | After c -> sprintf "V%sAFTER" c
     | Intermediate(i, c) -> sprintf "V%sINT%A" c i
     | Goal(i, c) -> sprintf "V%sGOAL%A" c i
+
+
+/// <summary>
+///     Converts a <c>Var</c> to a <c>MarkedVar</c>, un-munging its name.
+/// </summary>
+let markVar (v: Var) : MarkedVar =
+    let regex_builders = [
+        (Regex "V(.+)BEFORE", (fun (m: Match) -> Before(m.Groups[1].Value)));
+        (Regex "V(.+)AFTER", (fun (m: Match) -> After(m.Groups[1].Value)));
+        (Regex "V(.+)GOAL(.+)", (fun (m: Match) -> Goal (BigInteger.Parse(m.Groups[2].Value), m.Groups[1].Value)));
+        (Regex "V(.+)INT(.+)", (fun (m: Match) -> Intermediate (BigInteger.Parse(m.Groups[2].Value), m.Groups[1].Value)));
+    ]
+
+    let vars = [
+        for (r, b) in regex_builders do
+            let matches = r.Matches(v)
+            if matches.Count > 0 then
+                yield b matches[0]
+    ]
+
+    if vars.Length <> 1
+        then failwith "unreachable? unknown marked var format"
+        else vars[0]
 
 
 module VarMap =
