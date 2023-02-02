@@ -15,8 +15,6 @@
 /// </summary>
 module Starling.Backends.Z3
 
-open System.Collections.Generic
-
 open Microsoft
 open Starling
 open Starling.Utils
