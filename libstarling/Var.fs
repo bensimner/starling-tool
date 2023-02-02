@@ -155,16 +155,13 @@ let markVar (v: Var) : MarkedVar =
         (Regex "V(.+)INT(.+)", (fun (m: Match) -> Intermediate (BigInteger.Parse(m.Groups[2].Value), m.Groups[1].Value)));
     ]
 
-    let vars = [
-        for (r, b) in regex_builders do
-            let matches = r.Matches(v)
-            if matches.Count > 0 then
-                yield b matches[0]
-    ]
-
-    if vars.Length <> 1
-        then failwith "unreachable? unknown marked var format"
-        else vars[0]
+    regex_builders
+    |> Seq.collect (
+        fun (r, b) ->
+            r.Matches(v)
+            |> Seq.map b
+    )
+    |> Seq.item 0
 
 
 module VarMap =
